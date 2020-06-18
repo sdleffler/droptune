@@ -1,0 +1,6 @@
+[submodule "fmod-love"]
+	path = fmod-love
+	url = https://github.com/sdleffler/fmod-love
+[submodule "src/lib/tiny"]
+	path = src/lib/tiny
+	url = https://github.com/sdleffler/tiny-ecs
