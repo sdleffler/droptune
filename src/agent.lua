@@ -1,4 +1,4 @@
-local tiny = require("lib.tiny")
+local tiny = require("tiny")
 local prototype = require("prototype")
 local _, Component = unpack(require("entity"))
 

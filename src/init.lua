@@ -2,11 +2,11 @@ local droptune = {
     _LICENSE = "MIT/X11",
     _URL = "https://github.com/sdleffler/droptune",
     _VERSION = "0.0.1",
-    _DESCRIPTION = "A collection of Lua libraries designed as a starting point for Love2D games",
+    _DESCRIPTION = "A collection of Lua libraries designed as a starting point for LÖVE projects",
 }
 
-if not love then
-    package.path = "?.lua;?/init.lua" .. package.path
+if not (love or package.path:find("%?%.lua%;%?%/init%.lua%;")) then
+    package.path = "?.lua;?/init.lua;" .. package.path
 end
 
 -- This is a setup for loading files with relative paths. It's
@@ -21,6 +21,8 @@ end
 local status, err = pcall(function()
     droptune.agent = require("agent")
     droptune.entity = require("entity")
+    droptune.prototype = require("prototype")
+    droptune.scene = require("scene")
     droptune.tiny = require("tiny")
 end)
 

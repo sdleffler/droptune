@@ -16,17 +16,35 @@ function Prototype:new(...)
     return this
 end
 
-function Prototype:subtype(name)
+local cache = {}
+local function getSourceFile(path)
+    local cached = cache[path]
+    if not cached then
+        local lines = {}
+        local iter = (love and love.filesystem.lines(path))
+            or io.lines(path)
+
+        for line in iter do
+            lines[#lines + 1] = line
+        end 
+
+        cache[path] = lines
+        cached = lines
+    end
+    return cached
+end
+
+local function subtypeInner(this, target_frame)
     assert((name == nil or type(name) == "string"), "Prototype:subtype expects a string name as its only (optional) argument.")
 
     local subtype = {}
 
     -- Instead of using __index, make a shallow copy of the supertype.
-    for k, v in pairs(self) do
+    for k, v in pairs(this) do
         subtype[k] = v
     end
 
-    local metatable = getmetatable(self)
+    local metatable = getmetatable(this)
     if metatable then
         local subtypemt = {}
         for k, v in pairs(metatable) do
@@ -36,10 +54,33 @@ function Prototype:subtype(name)
     end
 
     subtype.__index = subtype
-    subtype[supertypeTableKey] = self
-    subtype[nameTableKey] = name
+    subtype[supertypeTableKey] = this
+
+    local namestring
+    if debug then
+        local info = debug.getinfo(target_frame)
+        if info.source:sub(1, 1) == "@" then
+            local line = getSourceFile(info.source:sub(2, -1))[info.currentline]
+            local _, j, name = line:find("^%s*(%w+)%s+")
+            if name ~= "local" then
+                namestring = name
+            else
+                namestring = select(3, line:sub(j, -1):find("^%s*(%w+)%s+"))
+            end
+        else
+            namestring = "<UNKNOWN>"
+        end
+
+        namestring = string.format("%s@%s:%d", namestring, info.short_src, info.currentline)
+    else
+        namestring = tostring(subtype)
+    end
 
     return subtype
+end
+
+function Prototype:subtype()
+    return subtypeInner(self, 3)
 end
 
 function disallowSubtype(ty)
@@ -81,19 +122,13 @@ function Prototype:elementOf(ty)
 end
 
 function Prototype:getPrototypeName()
-    local name = rawget(self, nameTableKey)
-    if name then
-        print("woo")
-        return name
-    else
-        return rawget(getmetatable(self), nameTableKey)
-    end
+    return self[nameTableKey]
 end
 
 return {
     Prototype = Prototype,
     new = function(...)
-        return Prototype:subtype(...)
+        return subtypeInner(Prototype, 2)
     end,
     disallowSubtype = disallowSubtype,
 }

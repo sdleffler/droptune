@@ -1,13 +1,9 @@
-local SceneStack = {}
-SceneStack.__index = SceneStack
+local prototype = require("prototype")
 
-function SceneStack:new()
-    local this = {}
-    setmetatable(this, self)
+local SceneStack = prototype.new("SceneStack")
 
+function SceneStack:init()
     this.stack = {}
-
-    return this
 end
 
 function SceneStack:push(scene)
@@ -83,8 +79,7 @@ function SceneStack:mousereleased(x, y, button, isTouch, presses)
     end
 end
 
-local Scene = {}
-Scene.__index = Scene
+local Scene = prototype.new()
 
 function Scene:new()
     local this = {}
