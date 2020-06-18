@@ -1,4 +1,4 @@
-local prototype = require("prototype")
+local prototype = dtrequire("prototype")
 
 local Component = prototype.new("Component")
 
@@ -29,7 +29,7 @@ function Entity:addComponent(component)
         component.entity = self
         return component
     else
-        error("not a component!")
+        error(string.format("%s is not not a component!", tostring(component)))
     end
 end
 

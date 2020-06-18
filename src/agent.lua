@@ -1,6 +1,5 @@
-local tiny = require("tiny")
-local prototype = require("prototype")
-local _, Component = unpack(require("entity"))
+local prototype = dtrequire("prototype")
+local _, Component = unpack(dtrequire("entity"))
 
 local State = prototype.new()
 

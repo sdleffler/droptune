@@ -12,22 +12,35 @@ end
 -- This is a setup for loading files with relative paths. It's
 -- an ugly hack, but it works. For submodules of droptune, we
 -- call droptune("module.path") rather than require("module.path").
-local old = _G.require
+local old = _G.dtrequire
 local dtpath = (...):gsub('%.init$', '') .. "."
-_G.require = function(s)
-    return old(dtpath .. s)
+_G.dtrequire = function(s)
+    return require(dtpath .. s)
 end
 
 local status, err = pcall(function()
-    droptune.agent = require("agent")
-    droptune.entity = require("entity")
-    droptune.prototype = require("prototype")
-    droptune.scene = require("scene")
-    droptune.tiny = require("tiny")
+    droptune.agent = dtrequire("agent")
+    droptune.entity = dtrequire("entity")
+    droptune.log = dtrequire("log")
+    droptune.keikaku = dtrequire("keikaku")
+    droptune.prototype = dtrequire("prototype")
+    droptune.scene = dtrequire("scene")
+
+    droptune.bitser = dtrequire("lib.bitser")
+    droptune.Slab = dtrequire("lib.Slab")
+    droptune.tiny = dtrequire("lib.tiny")
+    
+    droptune.isLoaded = false
+
+    function droptune.load(args)
+        droptune.Slab.Initialize(args)
+        droptune.isLoaded = true
+    end
 end)
 
--- Put the old require back so we don't screw up user code.
-_G.require = old
+-- Put the old dtrequire back so we don't screw up user code... in the
+-- unlikely case that someone is actually using this variable.
+_G.dtrequire = old
 
 -- We caught any potential errors so that we could put `require`
 -- back. But we still need to propagate any if they occurred.

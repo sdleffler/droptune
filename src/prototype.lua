@@ -1,3 +1,5 @@
+local bitser = dtrequire("lib.bitser")
+
 local Prototype = {}
 Prototype.__index = Prototype
 
@@ -14,6 +16,10 @@ function Prototype:new(...)
     end
 
     return this
+end
+
+function Prototype.fromTable(obj, proto)
+    return setmetatable(obj, proto)
 end
 
 local cache = {}
@@ -34,7 +40,7 @@ local function getSourceFile(path)
     return cached
 end
 
-local function subtypeInner(this, target_frame)
+local function subtypeInner(this, target_frame, namestring)
     assert((name == nil or type(name) == "string"), "Prototype:subtype expects a string name as its only (optional) argument.")
 
     local subtype = {}
@@ -56,8 +62,7 @@ local function subtypeInner(this, target_frame)
     subtype.__index = subtype
     subtype[supertypeTableKey] = this
 
-    local namestring
-    if not Prototype.no_namestring and debug then
+    if not namestring and debug then
         local info = debug.getinfo(target_frame)
         if info.source:sub(1, 1) == "@" then
             local line = getSourceFile(info.source:sub(2, -1))[info.currentline]
@@ -71,10 +76,16 @@ local function subtypeInner(this, target_frame)
             namestring = "<UNKNOWN>"
         end
 
-        namestring = string.format("%s@%s:%d", namestring, info.short_src, info.currentline)
+        namestring = string.format("%s@%s", namestring, info.short_src)
+    end
+
+    if namestring then
+        bitser.register(namestring, this)
     else
         namestring = tostring(subtype)
     end
+
+    subtype[nameTableKey] = namestring
 
     return subtype
 end
@@ -125,10 +136,19 @@ function Prototype:getPrototypeName()
     return self[nameTableKey]
 end
 
+function Prototype:__tostring()
+    local mt = getmetatable(self)
+    setmetatable(self, nil)
+    local tablestr = tostring(self)
+    setmetatable(self, mt)
+    return string.format("<%s:%s>", self[nameTableKey], tablestr)
+end
+
 return {
     Prototype = Prototype,
     new = function(...)
         return subtypeInner(Prototype, 2)
     end,
     disallowSubtype = disallowSubtype,
+    fromParts = fromParts,
 }
