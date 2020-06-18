@@ -57,7 +57,7 @@ local function subtypeInner(this, target_frame)
     subtype[supertypeTableKey] = this
 
     local namestring
-    if debug then
+    if not Prototype.no_namestring and debug then
         local info = debug.getinfo(target_frame)
         if info.source:sub(1, 1) == "@" then
             local line = getSourceFile(info.source:sub(2, -1))[info.currentline]
