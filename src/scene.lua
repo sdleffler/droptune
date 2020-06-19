@@ -2,41 +2,55 @@ local prototype = dtrequire("prototype")
 
 local SceneStack = prototype.new()
 
-function SceneStack:init()
-    self.stack = {}
-end
-
 function SceneStack:message(msg, ...)
-    local stack = self.stack
-    local top = #stack
+    local top = #self
 
     if top ~= 0 then
-        local current = stack[top]
-        local func = current[msg]
-
-        if func then
-            func(current, self, ...)
-        end
+        return true, self[top]:message(msg, self, ...)
+    else
+        return false
     end
 end
 
-function SceneStack:push(scene)
+function SceneStack:push(scene, ...)
     self:message("setFocused", false)
 
-    local stack = self.stack
-    stack[#stack + 1] = scene
+    self[#self + 1] = scene
 
     self:message("setFocused", true)
 end
 
+--- Pop the top scene and return it.
 function SceneStack:pop(...)
     self:message("setFocused", false)
     self:message("pop", ...)
 
-    local stack = self.stack
-    stack[#stack] = nil
+    local scene = self[#self]
+    self[#self] = nil
 
     self:message("setFocused", true)
+    return scene
+end
+
+--- Pop scenes until we reach the target scene and pop it. If
+-- the target scene isn't in the scene stack, nothing will happen.
+function SceneStack:popAll(target)
+    local index
+    for i = #self, 1, -1 do
+        if self[i] == target then
+            index = i
+            break
+        end
+    end
+
+    if index then
+        self:message("setFocused", false)
+        for i = #self, index, -1 do
+            self:message("pop")
+            self[#self] = nil
+        end
+        self:message("setFocused", true)
+    end
 end
 
 local loveCallbacks = {
@@ -79,13 +93,22 @@ function SceneStack:installHooks(table)
     for _, cb in ipairs(loveCallbacks) do
         if not table[cb] then
             table[cb] = function(...)
-                self:message(cb, ...)
+                return self:message(cb, ...)
             end
         end
     end
 end
 
 local Scene = prototype.new()
+
+function Scene:message(msg, agent, ...)
+    local func = self[msg]
+    if func then
+        return true, func(self, agent, ...)
+    else
+        return false
+    end
+end
 
 return {
     SceneStack = SceneStack,

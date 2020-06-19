@@ -3,10 +3,14 @@ local bitser = dtrequire("lib.bitser")
 local Prototype = {}
 Prototype.__index = Prototype
 
+local isPrototypeTableKey = { "PROTOTYPE" }
 local supertypeTableKey = { "SUPERTYPE" }
 local nameTableKey = { "NAME" }
+local shortNameTableKey = { "SHORTNAME" }
 
+Prototype[isPrototypeTableKey] = true
 Prototype[nameTableKey] = "Prototype"
+Prototype[shortNameTableKey] = "Prototype"
 
 function Prototype:new(...)
     local this = setmetatable({}, self)
@@ -40,7 +44,7 @@ local function getSourceFile(path)
     return cached
 end
 
-function tryNameFromDebugInfo()
+local function tryNameFromDebugInfo()
     local level, info = 2, debug.getinfo(1, 'S')
     local here = info.short_src
     while info.short_src == here do
@@ -75,10 +79,10 @@ function tryNameFromDebugInfo()
         return nil
     end
 
-    return string.format("%s@%s", namestring, info.short_src)
+    return string.format("%s@%s", namestring, info.short_src), namestring
 end
 
-local function rawSubtype(this, namestring)
+local function rawSubtype(this, namestring, shortnamestring)
     assert((name == nil or type(name) == "string"), "Prototype:subtype expects a string name as its only (optional) argument.")
 
     local subtype = {}
@@ -101,7 +105,7 @@ local function rawSubtype(this, namestring)
     subtype[supertypeTableKey] = this
 
     if not namestring and debug then
-        namestring = tryNameFromDebugInfo()
+        namestring, shortnamestring = tryNameFromDebugInfo()
     end
 
     if namestring then
@@ -111,15 +115,16 @@ local function rawSubtype(this, namestring)
     end
 
     subtype[nameTableKey] = namestring
+    subtype[shortNameTableKey] = shortnamestring or namestring
 
     return subtype
 end
 
-function Prototype:subtype(namestring)
-    return rawSubtype(self, namestring)
+function Prototype:subtype(namestring, shortnamestring)
+    return rawSubtype(self, namestring, shortnamestring)
 end
 
-function disallowSubtype(ty)
+local function disallowSubtype(ty)
     assert(ty ~= Prototype, "don't fuck up the base type")  
     assert(Prototype.isSubtypeOf(ty, Prototype))
     ty.subtype = function()
@@ -146,6 +151,10 @@ function Prototype:isSubtypeOf(ty)
     return false
 end
 
+function Prototype:isSupertypeOf(ty)
+    return ty ~= nil and Prototype.isSubtypeOf(ty, self)
+end
+
 function Prototype:elementOf(ty)
     local m = getmetatable(self)
     while m do
@@ -161,12 +170,20 @@ function Prototype:getPrototypeName()
     return self[nameTableKey]
 end
 
+function Prototype:getShortPrototypeName()
+    return self[shortNameTableKey]
+end
+
 function Prototype:__tostring()
     local mt = getmetatable(self)
     setmetatable(self, nil)
     local tablestr = tostring(self)
     setmetatable(self, mt)
     return string.format("<%s:%s>", self[nameTableKey], tablestr)
+end
+
+local function isPrototype(obj)
+    return obj[isPrototypeTableKey] or false
 end
 
 return {
@@ -177,4 +194,6 @@ return {
     disallowSubtype = disallowSubtype,
     fromParts = fromParts,
     tryNameFromDebugInfo = tryNameFromDebugInfo,
+    isPrototyped = isPrototyped,
+    isSupertypeOf = isSupertypeOf,
 }

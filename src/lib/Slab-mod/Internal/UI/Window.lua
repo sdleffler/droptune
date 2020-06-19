@@ -584,6 +584,7 @@ function Window.Begin(Id, Options)
 				if Mouse.IsClicked(1) then
 					ActiveInstance.IsOpen = false
 					Options.IsOpen = false
+					ActiveInstance.IsMoving = false
 				end
 			end
 

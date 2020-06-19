@@ -4,8 +4,10 @@ local _, Component = unpack(dtrequire("entity"))
 local State = prototype.new()
 
 function State:init(events)
-    for k, v in pairs(events) do
-        self[k] = v
+    if events then
+        for k, v in pairs(events) do
+            self[k] = v
+        end
     end
 end
 
@@ -13,15 +15,9 @@ function State.push(agent)
     agent:message("enter")
 end
 
-function State.enter(agent) end
-
 function State.pop(agent)
     agent:message("exit")
 end
-
-function State.exit(agent) end
-
-function State.update(agent, e, dt) end
 
 local Agent = Component:subtype()
 
@@ -40,7 +36,9 @@ function Agent:message(msg, ...)
         local func = self.states[current][msg]
 
         if func then
-            func(self, ...)
+            return true, func(self, ...)
+        else
+            return false
         end
     end
 end
@@ -66,9 +64,18 @@ function Agent:popState(...)
     self:message("enter")
 end
 
-function Agent:update(dt)
+function Agent:setState(state, ...)
+    self:popState()
+    self:pushState(state, ...)
+end
+
+function Agent:update(dt, ...)
     self.elapsed = self.elapsed + dt
-    self:message("update", dt)
+    self:message("update", dt, ...)
+end
+
+function Agent:getState()
+    return self.stack[#self.stack]
 end
 
 return {
