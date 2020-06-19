@@ -40,7 +40,45 @@ local function getSourceFile(path)
     return cached
 end
 
-local function subtypeInner(this, target_frame, namestring)
+function tryNameFromDebugInfo()
+    local level, info = 2, debug.getinfo(1, 'S')
+    local here = info.short_src
+    while info.short_src == here do
+        level = level + 1
+        info = debug.getinfo(level, 'Sl')
+    end
+
+    local namestring
+    if info.source:sub(1, 1) == "@" then
+        local line = getSourceFile(info.source:sub(2, -1))[info.currentline]
+        local _, j, name = line:find("^%s*(%w+)%s+")
+        if name ~= "local" then
+            namestring = name
+        else
+            namestring = select(3, line:sub(j, -1):find("^%s*(%w+)%s+"))
+        end
+    else
+        --namestring = string.format("<UNKNOWN:%s>", tostring(this))
+
+        -- local level = 1
+        -- while true do
+        --     local info = debug.getinfo(level, "Sl")
+        --     if not info then break end
+        --     if info.what == "C" then   -- is a C function?
+        --         print(level, "C function")
+        --     else   -- a Lua function
+        --         print(string.format("[%s]:%d",
+        --                         info.short_src, info.currentline))
+        --     end
+        --     level = level + 1
+        -- end
+        return nil
+    end
+
+    return string.format("%s@%s", namestring, info.short_src)
+end
+
+local function rawSubtype(this, namestring)
     assert((name == nil or type(name) == "string"), "Prototype:subtype expects a string name as its only (optional) argument.")
 
     local subtype = {}
@@ -63,20 +101,7 @@ local function subtypeInner(this, target_frame, namestring)
     subtype[supertypeTableKey] = this
 
     if not namestring and debug then
-        local info = debug.getinfo(target_frame)
-        if info.source:sub(1, 1) == "@" then
-            local line = getSourceFile(info.source:sub(2, -1))[info.currentline]
-            local _, j, name = line:find("^%s*(%w+)%s+")
-            if name ~= "local" then
-                namestring = name
-            else
-                namestring = select(3, line:sub(j, -1):find("^%s*(%w+)%s+"))
-            end
-        else
-            namestring = "<UNKNOWN>"
-        end
-
-        namestring = string.format("%s@%s", namestring, info.short_src)
+        namestring = tryNameFromDebugInfo()
     end
 
     if namestring then
@@ -90,8 +115,8 @@ local function subtypeInner(this, target_frame, namestring)
     return subtype
 end
 
-function Prototype:subtype()
-    return subtypeInner(self, 3)
+function Prototype:subtype(namestring)
+    return rawSubtype(self, namestring)
 end
 
 function disallowSubtype(ty)
@@ -147,8 +172,9 @@ end
 return {
     Prototype = Prototype,
     new = function(...)
-        return subtypeInner(Prototype, 2)
+        return rawSubtype(Prototype, ...)
     end,
     disallowSubtype = disallowSubtype,
     fromParts = fromParts,
+    tryNameFromDebugInfo = tryNameFromDebugInfo,
 }

@@ -4,4 +4,4 @@ if not (love or package.path:find("%?%.lua%;%?%/init%.lua%;")) then
     package.path = "?.lua;?/init.lua;" .. package.path
 end
 
-return require("src")
+return require(... .. ".src")

@@ -9,9 +9,9 @@ end
 
 function love.update(dt)
     logger:push("info", "lol")
-    scenestack:update(dt)
+    scenestack:message("update", dt)
 end
 
 function love.draw()
-    scenestack:draw()
+    scenestack:message("draw", dt)
 end

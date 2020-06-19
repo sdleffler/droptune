@@ -1,6 +1,6 @@
 local prototype = dtrequire("prototype")
 
-local SceneStack = prototype.new("SceneStack")
+local SceneStack = prototype.new()
 
 function SceneStack:init()
     self.stack = {}
@@ -39,15 +39,53 @@ function SceneStack:pop(...)
     self:message("setFocused", true)
 end
 
-function SceneStack:update(dt)
-    self:message("update", dt)
+local loveCallbacks = {
+    "directorydropped",
+    "displayrotated",
+    "errhandler",
+    "filedropped",
+    "focus",
+    "gamepadaxis",
+    "gamepadpressed",
+    "gamepadreleased",
+    "joystickadded",
+    "joystickaxis",
+    "joystickhat",
+    "joystickpressed",
+    "joystickreleased",
+    "joystickremoved",
+    "keypressed",
+    "keyreleased",
+    "lowmemory",
+    "mousefocus",
+    "mousemoved",
+    "mousepressed",
+    "mousereleased",
+    "quit",
+    "resize",
+    "textedited",
+    "textinput",
+    "threaderror",
+    "touchmoved",
+    "touchpressed",
+    "touchreleased",
+    "visible",
+    "wheelmoved",
+}
+
+--- Installs hooks for almost every Love2D callback.
+-- Notably left out are `love.draw` and `love.update`.
+function SceneStack:installHooks(table)
+    for _, cb in ipairs(loveCallbacks) do
+        if not table[cb] then
+            table[cb] = function(...)
+                self:message(cb, ...)
+            end
+        end
+    end
 end
 
-function SceneStack:draw()
-    self:message("draw")
-end
-
-local Scene = prototype.new("Scene")
+local Scene = prototype.new()
 
 return {
     SceneStack = SceneStack,

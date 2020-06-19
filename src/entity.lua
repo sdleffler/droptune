@@ -1,12 +1,16 @@
 local prototype = dtrequire("prototype")
 
-local Component = prototype.new("Component")
+local Component = prototype.new()
 
 -- TODO: warn about Component subtyping behavior w.r.t.
 -- one-per-type behavior w/ an Entity (subtype considered
 -- distinct from supertype)
-function Component:subtype(...)
-    local subty = prototype.Prototype.subtype(self, ...)
+function Component:subtype(namestring)
+    if not namestring then
+        namestring = prototype.tryNameFromDebugInfo()
+    end
+
+    local subty = prototype.Prototype.subtype(self, namestring)
 
     function subty.filter(system, e)
         return e[subty]
