@@ -4,3 +4,7 @@
 [submodule "src/lib/tiny"]
 	path = src/lib/tiny
 	url = https://github.com/sdleffler/tiny-ecs
+[submodule "src/lib/Slab"]
+	path = src/lib/Slab
+	url = https://github.com/sdleffler/Slab
+	branch = 0.7.0c
