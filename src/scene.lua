@@ -6,7 +6,7 @@ function SceneStack:message(msg, ...)
     local top = #self
 
     if top ~= 0 then
-        return true, self[top]:message(msg, self, ...)
+        return self[top]:message(msg, self, ...)
     else
         return false
     end

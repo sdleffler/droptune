@@ -1,7 +1,10 @@
 local bitser = dtrequire("lib.bitser")
 
+local prototype = {}
+
 local Prototype = {}
 Prototype.__index = Prototype
+prototype.Prototype = Prototype
 
 local isPrototypeTableKey = { "PROTOTYPE" }
 local supertypeTableKey = { "SUPERTYPE" }
@@ -22,9 +25,23 @@ function Prototype:new(...)
     return this
 end
 
-function Prototype.fromTable(obj, proto)
-    return setmetatable(obj, proto)
-end
+-- function Prototype.fromTable(obj, proto)
+--     return setmetatable(obj, proto)
+-- end
+
+-- function Prototype:toTable()
+--     local t = {}
+
+--     for k, v in pairs(self) do
+--         t[k] = v
+--     end
+
+--     for i, v in ipairs(self) do
+--         t[i] = v
+--     end
+
+--     return t
+-- end
 
 local cache = {}
 local function getSourceFile(path)
@@ -44,7 +61,7 @@ local function getSourceFile(path)
     return cached
 end
 
-local function tryNameFromDebugInfo()
+function prototype.tryNameFromDebugInfo()
     local level, info = 2, debug.getinfo(1, 'S')
     local here = info.short_src
     while info.short_src == here do
@@ -105,7 +122,7 @@ local function rawSubtype(this, namestring, shortnamestring)
     subtype[supertypeTableKey] = this
 
     if not namestring and debug then
-        namestring, shortnamestring = tryNameFromDebugInfo()
+        namestring, shortnamestring = prototype.tryNameFromDebugInfo()
     end
 
     if namestring then
@@ -124,7 +141,11 @@ function Prototype:subtype(namestring, shortnamestring)
     return rawSubtype(self, namestring, shortnamestring)
 end
 
-local function disallowSubtype(ty)
+function prototype.new(...)
+    return rawSubtype(Prototype, ...)
+end
+
+function prototype.disallowSubtype(ty)
     assert(ty ~= Prototype, "don't fuck up the base type")  
     assert(Prototype.isSubtypeOf(ty, Prototype))
     ty.subtype = function()
@@ -133,7 +154,8 @@ local function disallowSubtype(ty)
 end
 
 function Prototype:prototype()
-    return getmetatable(self)
+    return (rawget(self, isPrototypeTableKey) and self)
+        or getmetatable(self)
 end
 
 function Prototype:super()
@@ -182,18 +204,52 @@ function Prototype:__tostring()
     return string.format("<%s:%s>", self[nameTableKey], tablestr)
 end
 
-local function isPrototype(obj)
-    return obj[isPrototypeTableKey] or false
+function Prototype:implements(interface)
+    return interface[self:prototype()]
 end
 
-return {
-    Prototype = Prototype,
-    new = function(...)
-        return rawSubtype(Prototype, ...)
-    end,
-    disallowSubtype = disallowSubtype,
-    fromParts = fromParts,
-    tryNameFromDebugInfo = tryNameFromDebugInfo,
-    isPrototyped = isPrototyped,
-    isSupertypeOf = isSupertypeOf,
-}
+function prototype.isPrototyped(obj)
+    local mt = getmetatable(obj)
+    return rawget(mt, supertypeTableKey) ~= nil
+end
+
+function prototype.isPrototype(proto)
+    return type(proto) == "table" and rawget(proto, supertypeTableKey) ~= nil
+end
+
+local Interface = prototype.new()
+
+function prototype.newInterface(table)
+    assert(not getmetatable(table), "cannot make interface out of table with metatable")
+
+    -- Capture the module for the internal closure to capture
+    local prototype = prototype
+
+    for k, v in pairs(table) do
+        if type(k) == "string" then
+            table[k] = function(obj, ...)
+                assert(prototype.isPrototyped(obj))
+                return (table[getmetatable(obj)][k] or v)(obj, ...)
+            end
+        end
+    end
+
+    return setmetatable(table, Interface)
+end
+
+function Interface:__newindex()
+    error("interface not arbitrarily assignable!")
+end
+
+function prototype.registerInterface(interface, proto, methods)
+    assert(not rawget(interface, proto),
+        proto:getShortPrototypeName() .. " already registered")    
+
+    for k, v in pairs(methods) do
+        assert(rawget(interface, k), "method not in interface!")
+    end
+
+    rawset(interface, proto, setmetatable(methods, interface))
+end
+
+return prototype

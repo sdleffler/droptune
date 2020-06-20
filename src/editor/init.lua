@@ -1,16 +1,64 @@
+local slabFactory = dtrequire("slab_factory")
+local tiny = dtrequire("lib.tiny")
+local prototype = dtrequire("prototype")
 local scene = dtrequire("scene")
-local Slab = dtrequire("lib.Slab")
+local entities = dtrequire("editor.entities")
 
-local entities = dtrequire("keikaku.editor.entities")
+local PoolSystem = tiny.processingSystem(prototype.new())
+PoolSystem.active = false
+
+function PoolSystem:init()
+    self.next = 1
+    self.unused = {}
+end
+
+--- Track *all* entities.
+function PoolSystem:filter(entity)
+    return true
+end
+
+function PoolSystem:onAdd(entity)
+    if #self.unused > 0 then
+        self[entity] = table.remove(self.unused)
+    else
+        local s = "entity@" .. self.next
+        self.next = self.next + 1
+        self[entity] = {
+            id = s
+        }
+    end
+end
+
+function PoolSystem:onRemove(entity)
+    local freed = self[entity]
+    self[entity] = nil
+    table.insert(self.unused, freed)
+end
+
+function PoolSystem:process(e, dt)
+    local info = self[e]
+    if info.window then
+        info.window:update(dt)
+    end
+end
 
 local EditorScene = scene.Scene:subtype()
 
-function EditorScene:init()
+function EditorScene:init(world)
+    local mod = slabFactory()
+    self.Slab = mod.Slab
+    self.SlabDebug = mod.SlabDebug
+
+    self.Slab.Initialize()
+
+    self.world = world or tiny.world()
+    self.tracker = self.world:addSystem(PoolSystem:new())
+
     self.focus = false
     self.pauseParent = true
     self.mouseBlocked = false
 
-    self.entitiesWindow = entities.EntitiesWindow:new()
+    self.entitiesWindow = entities.EntitiesWindow:new(self.Slab, self.tracker)
 end
 
 function EditorScene:message(msg, scenestack, ...)
@@ -35,6 +83,7 @@ function EditorScene:setFocused(scenestack, focus)
 end
 
 function EditorScene:update(scenestack, dt)
+    local Slab, SlabDebug = self.Slab, self.SlabDebug
     Slab.Update(dt)
 
     if Slab.BeginMainMenuBar() then
@@ -59,16 +108,18 @@ function EditorScene:update(scenestack, dt)
 
             Slab.EndMenu()
         end
+
+        SlabDebug.Menu()
     
         Slab.EndMainMenuBar()
     end
 
-    local _, world = self.parent:message("getWorld")
-    if world then
-        world:refresh()
-    end
+    SlabDebug.Windows()
+    SlabDebug.Regions()
 
-    self.entitiesWindow:update(dt, world)
+    self.world:refresh()
+    self.entitiesWindow:update(dt, self.world)
+    self.tracker:update(dt)
 
     -- TODO: less "hard" pausing
     local parent = self.parent
@@ -82,26 +133,30 @@ function EditorScene:draw(scenestack)
     if parent then
         parent:message("draw", scenestack)
     end
-    Slab.Draw()
+    self.Slab.Draw()
+end
+
+function EditorScene:isMouseUnobstructed()
+    return self.Slab.IsVoidHovered() or self.Slab.IsVoidClicked()
 end
 
 function EditorScene:mousemoved(scenestack, ...)
     local parent = self.parent
-    if Slab.IsVoidHovered() and parent and not self.pauseParent then
+    if self:isMouseUnobstructed() and parent and not self.pauseParent then
         parent:message("mousemoved", scenestack, ...)
     end
 end
 
 function EditorScene:mousepressed(scenestack, ...)
     local parent = self.parent
-    if Slab.IsVoidHovered() and parent and not self.pauseParent then
+    if self:isMouseUnobstructed() and parent and not self.pauseParent then
         parent:message("mousepressed", scenestack, ...)
     end
 end
 
 function EditorScene:mousereleased(scenestack, ...)
     local parent = self.parent
-    if Slab.IsVoidHovered() and parent and not self.pauseParent then
+    if self:isMouseUnobstructed() and parent and not self.pauseParent then
         parent:message("mousereleased", scenestack, ...)
     end
 end
