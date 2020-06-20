@@ -24,7 +24,8 @@ function PoolSystem:onAdd(entity)
         local s = "entity@" .. self.next
         self.next = self.next + 1
         self[entity] = {
-            id = s
+            id = s,
+            windows = {},
         }
     end
 end
@@ -37,8 +38,8 @@ end
 
 function PoolSystem:process(e, dt)
     local info = self[e]
-    if info.window then
-        info.window:update(dt)
+    for _, w in pairs(info.windows) do
+        w:update(dt)
     end
 end
 
@@ -112,6 +113,14 @@ function EditorScene:update(scenestack, dt)
         SlabDebug.Menu()
     
         Slab.EndMainMenuBar()
+    end
+
+    if Slab.BeginContextMenuWindow() then
+        if Slab.MenuItem("Entities...") then
+            self.entitiesWindow:openWindow()
+        end
+
+        Slab.EndContextMenu()
     end
 
     SlabDebug.Windows()

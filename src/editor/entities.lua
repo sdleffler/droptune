@@ -1,6 +1,12 @@
+local fuzzel = dtrequire("lib.fuzzel")
+
 local Agent, State = unpack(dtrequire("agent"))
-local Editable = dtrequire("editable").Editable
+local components = dtrequire("components")
+local editable = dtrequire("editable")
 local prototype = dtrequire("prototype")
+
+local Editable = editable.Editable
+local NameComponent = components.NameComponent
 
 local EntitiesFilterWindow = Agent:subtype()
 
@@ -61,34 +67,10 @@ do
     local states = {
         closed = State:new(),
         open = State:new(),
+        adding = State:new(),
     }
 
-    function states.closed.isOpen(agent)
-        return false
-    end
-
-    function states.closed.openWindow(agent)
-        agent:setState("open")
-    end
-
-    function states.open.openComponent(agent, component)
-        if component then
-            agent.opened[component] = true
-        end
-    end
-
-    function states.open.update(agent, dt)
-        local Slab, entity = agent.Slab, agent.entity
-        local id = agent.trackedinfo.id
-
-        if not Slab.BeginWindow(id, {
-            Title = id,
-            AutoSizeWindow = true,
-            IsOpen = true,
-        }) then
-            agent:setState("closed")
-        end
-
+    local function buildComponentList(agent, Slab, entity, id)
         for component, instance in pairs(entity) do
             if prototype.isPrototype(component) then
                 local label = component:getShortPrototypeName()
@@ -113,8 +95,120 @@ do
                 end
             end
         end
+    end
+
+    function states.closed.isOpen(agent)
+        return false
+    end
+
+    function states.closed.openWindow(agent)
+        agent:setState("open")
+    end
+
+    function states.closed.openComponent(agent, component)
+        agent:setState("open")
+        agent:message("openComponent", component)
+    end
+
+    function states.closed.addComponent(agent)
+        agent:setState("adding")
+    end
+
+    function states.open.openComponent(agent, component)
+        if component then
+            agent.opened[component] = true
+        end
+    end
+
+    function states.open.addComponent(agent)
+        agent:setState("adding")
+    end
+
+    function states.open.update(agent, dt)
+        local Slab, entity = agent.Slab, agent.entity
+        local id = agent.trackedinfo.id
+
+        if not Slab.BeginWindow(id, {
+            Title = id,
+            AutoSizeWindow = true,
+            IsOpen = true,
+        }) then
+            agent:setState("closed")
+        end
+
+        buildComponentList(agent, Slab, entity, id)
 
         Slab.EndWindow()
+    end
+
+    function states.adding.update(agent, dt)
+        local Slab, entity = agent.Slab, agent.entity
+        local id = agent.trackedinfo.id
+
+        if not Slab.BeginWindow(id, {
+            Title = id,
+            AutoSizeWindow = true,
+            IsOpen = true,
+        }) then
+            agent:setState("closed")
+        end
+
+        buildComponentList(agent, Slab, entity, id)
+
+        Slab.Separator()
+
+        agent.searchtext = agent.searchtext or "Search"
+
+        Slab.BeginLayout("SearchLayout", {ExpandW = true, Ignore = true})
+
+        local isEntered = Slab.Input("AddComponentInput", {
+            Text = agent.searchtext,
+            ReturnOnText = false,
+        })
+
+        local newtext, enteredName = Slab.GetInputText(), nil
+        local modified = false
+        if newtext ~= agent.searchtext and #newtext > 0 then
+            agent.searchtext = newtext
+            modified = true
+            agent.searchresults = fuzzel.FuzzyAutocompleteRatio(newtext, editable.registeredComponentNames)
+        end
+
+        Slab.BeginListBox("SearchResults", {Clear = modified})
+
+        for i, name in ipairs(agent.searchresults) do
+            Slab.BeginListBoxItem("ListBoxItem " .. i, {Selected = i == 1})
+            Slab.Text(name)
+            
+            if Slab.IsListBoxItemClicked(1, false) then
+                enteredName = name
+                isEntered = true
+
+                Slab.EndListBoxItem()
+                break
+            end
+
+            Slab.EndListBoxItem()
+        end
+
+        Slab.EndListBox()
+
+        Slab.EndLayout()
+
+        Slab.EndWindow()
+
+        if isEntered then
+            enteredName = enteredName or agent.searchresults[1]
+
+            local component = editable.registeredComponents[enteredName]
+            local fresh = Editable.newDefault(component)
+            if fresh then
+                entity:addComponent(fresh)
+                agent:setState("open")
+            else
+                print("Component has no default to add!")
+            end
+        end
     end
 
     function EntityEditWindow:init(Slab, trackedinfo, entity)
@@ -122,7 +216,8 @@ do
         self.Slab = Slab
         self.trackedinfo = trackedinfo
         self.entity = entity
-        self.opened = {}    
+        self.opened = {}
+        self.searchresults = {}
         self:pushState("open")
     end
 end
@@ -140,17 +235,107 @@ do
         agent:setState("open")
     end
 
+    function closed.openWindow(agent)
+        agent:setState("open")
+    end
+
     local open = State:new()
 
     function open.editEntity(agent, entity, component)
         local info = agent.tracker[entity]
 
-        if not info.window then
-            info.window = EntityEditWindow:new(agent.Slab, info, entity, component)
+        local edit = info.windows.edit
+        if not edit then
+            edit = EntityEditWindow:new(agent.Slab, info, entity, component)
+            info.windows.edit = edit
         end
 
-        info.window:message("openWindow")
-        info.window:message("openComponent", component)
+        edit:message("openComponent", component)
+    end
+
+    function open.contextMenu(agent, entity)
+        local Slab = agent.Slab
+
+        if Slab.MenuItem("Add entity...") then
+            print("ADD NEW ENTITY")
+        end
+
+        if Slab.MenuItem("Add component...") then
+            print("ADD NEW COMPONENT " .. tostring(entity))
+            local info = agent.tracker[entity]
+            
+            local edit = info.windows.edit
+            if not edit then
+                edit = EntityEditWindow:new(agent.Slab, info, entity, component)
+                info.windows.edit = edit
+            end
+
+            edit:message("addComponent")
+        end
+    end
+
+    function open.buildEntityTree(agent)
+        local Slab = agent.Slab
+
+        for i, entity in ipairs(agent.tracker.entities) do
+            local namecomponent = entity[NameComponent]
+            local label
+            local id = agent.tracker[entity].id
+
+            if namecomponent then
+                label = string.format("%s (%s)", namecomponent.name, tostring(entity))
+            end
+        
+            local doTree = Slab.BeginTree(id, {
+                Label = label or id,
+                OpenWithHighlight = false,
+                NoSavedSettings = true,
+                IsSelected = entity == agent.selected,
+            })
+
+            if Slab.BeginContextMenuItem() then
+                agent:message("contextMenu", entity)
+                Slab.EndContextMenu()
+            end
+
+            if Slab.IsControlClicked() then
+                agent.selected = entity
+                agent.subselected = nil
+
+                if Slab.IsMouseDoubleClicked() then
+                    agent:message("editEntity", entity, nil)
+                end
+            end
+
+            if doTree then
+                for component, instance in entity:iter() do
+                    local label = component:getShortPrototypeName()
+
+                    Slab.BeginTree(label .. "@" .. i, { 
+                        Label = label,
+                        NoSavedSettings = true,
+                        IsLeaf = true,
+                        IsSelected = agent.subselected == instance,
+                    })
+
+                    if Slab.BeginContextMenuItem() then
+                        agent:message("contextMenu", entity)
+                        Slab.EndContextMenu()
+                    end
+
+                    if Slab.IsControlClicked(1) then
+                        agent.selected = entity
+                        agent.subselected = instance
+
+                        if Slab.IsMouseDoubleClicked() then
+                            agent:message("editEntity", entity, component)
+                        end
+                    end
+                end
+
+                Slab.EndTree()
+            end
+        end
     end
 
     function open.update(agent, dt, world)
@@ -178,49 +363,7 @@ do
 
         if world then
             if Slab.BeginTree("Root", {OpenWithHighlight = false}) then
-                for i, entity in ipairs(world.entities) do
-                    local doTree = Slab.BeginTree(agent.tracker[entity].id, {
-                        Label = "entity@" .. i,
-                        OpenWithHighlight = false,
-                        NoSavedSettings = true,
-                        IsSelected = entity == agent.selected,
-                    })
-
-                    if Slab.IsControlClicked(1) then
-                        agent.selected = entity
-                        agent.subselected = nil
-
-                        if Slab.IsMouseDoubleClicked() then
-                            agent:message("editEntity", entity, nil)
-                        end
-                    end
-
-                    if doTree then
-                        for component, instance in entity:iter() do
-                            local label = component:getShortPrototypeName()
-
-                            Slab.BeginTree(label .. "@" .. i, { 
-                                Label = label,
-                                NoSavedSettings = true,
-                                IsLeaf = true,
-                                IsSelected = agent.subselected == instance,
-                            })
-
-                            if Slab.IsControlClicked(1) then
-                                agent.selected = entity
-                                agent.subselected = instance
-
-                                if Slab.IsMouseDoubleClicked() then
-                                    agent:message("editEntity", entity, component)
-                                end
-                            end
-                            -- end
-                        end
-
-                        Slab.EndTree()
-                    end
-                end
-
+                agent:message("buildEntityTree")
                 Slab.EndTree()
             end
         end
@@ -253,6 +396,10 @@ do
     
     function EntitiesWindow:viewToggle()
         self:message("viewToggle")
+    end
+
+    function EntitiesWindow:openWindow()
+        self:message("openWindow")
     end
 
     function EntitiesWindow:isOpen()

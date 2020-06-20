@@ -9,17 +9,16 @@ local loggerCode = [[
         stream:setvbuf("no")
     end
 
-    repeat
-        msg = channel:demand(5000)
+    while true do
+        stream:write(msg or "")
 
         if not msg then
             stream:flush()
+            msg = channel:demand()
         else
-            stream:write(msg)
+            msg = channel:demand(100)
         end
-
-        msg = channel:demand()
-    until not msg
+    end
 ]]
 
 local defaultLevels = {
@@ -81,8 +80,25 @@ function Logger:push(level, msg, ...)
     local value = self.levels[level]
     assert(value, "unrecognized logging level")
     if value >= self.minimum then
-        self.channel:push(self:format(level, string.format(msg, ...)))
+        local formatted = self:format(level, string.format(msg, ...))
+        self.channel:push(formatted)
     end
+end
+
+function Logger:debug(...)
+    self:push("debug", ...)
+end
+
+function Logger:info(...)
+    self:push("info", ...)
+end
+
+function Logger:warn(...)
+    self:push("warn", ...)
+end
+
+function Logger:error(...)
+    self:push("error", ...)
 end
 
 return {

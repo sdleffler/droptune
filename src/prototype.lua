@@ -43,6 +43,10 @@ end
 --     return t
 -- end
 
+local function sanitizeSourcePath(path)
+    return path:gsub("\\", "/"):gsub("^%./", "")
+end
+
 local cache = {}
 local function getSourceFile(path)
     local cached = cache[path]
@@ -71,7 +75,11 @@ function prototype.tryNameFromDebugInfo()
 
     local namestring
     if info.source:sub(1, 1) == "@" then
-        local line = getSourceFile(info.source:sub(2, -1))[info.currentline]
+        -- Turn backslashes to forward slashes and chop off a leading `./` if it's there,
+        -- since it will confuse `love.filesystem.lines()`.
+        -- These can happen when a file is loaded with `love.filesystem.load` rather than `require`.
+        local corrected = sanitizeSourcePath(info.source:sub(2, -1))
+        local line = getSourceFile(corrected)[info.currentline]
         local _, j, name = line:find("^%s*(%w+)%s+")
         if name ~= "local" then
             namestring = name
@@ -96,7 +104,7 @@ function prototype.tryNameFromDebugInfo()
         return nil
     end
 
-    return string.format("%s@%s", namestring, info.short_src), namestring
+    return string.format("%s@%s", namestring, sanitizeSourcePath(info.short_src)), namestring
 end
 
 local function rawSubtype(this, namestring, shortnamestring)
@@ -154,7 +162,7 @@ function prototype.disallowSubtype(ty)
 end
 
 function Prototype:prototype()
-    return (rawget(self, isPrototypeTableKey) and self)
+    return (self and rawget(self, isPrototypeTableKey) and self)
         or getmetatable(self)
 end
 
@@ -228,8 +236,8 @@ function prototype.newInterface(table)
     for k, v in pairs(table) do
         if type(k) == "string" then
             table[k] = function(obj, ...)
-                assert(prototype.isPrototyped(obj))
-                return (table[getmetatable(obj)][k] or v)(obj, ...)
+                local t = assert(Prototype.prototype(obj))
+                return (table[t][k] or v)(obj, ...)
             end
         end
     end
@@ -249,7 +257,7 @@ function prototype.registerInterface(interface, proto, methods)
         assert(rawget(interface, k), "method not in interface!")
     end
 
-    rawset(interface, proto, setmetatable(methods, interface))
+    rawset(interface, proto, setmetatable(methods, Interface))
 end
 
 return prototype
