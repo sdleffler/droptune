@@ -70,7 +70,7 @@ function ConsoleScene:update(scenestack, dt)
         local ok, err = loadstring("return " .. code)
 
         if ok then
-            ok, result = xpcall(ok, debug.traceback) -- TODO: setfenv
+            ok, result = xpcall(setfenv(ok, scenestack.env), debug.traceback) -- TODO: setfenv
 
             if ok then
                 concat = concat .. tostring(result) .. "\n"

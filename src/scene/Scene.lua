@@ -11,6 +11,10 @@ function Scene:message(msg, agent, ...)
     end
 end
 
+function Scene:getEnv()
+    return nil
+end
+
 function Scene:keypressed(scenestack, key)
     if key == "`" and love.keyboard.isDown("lctrl", "lshift") then
         scenestack:openConsole()

@@ -6,6 +6,11 @@ local SceneStack = prototype.new()
 
 function SceneStack:init()
     self.console = ConsoleScene:new()
+    self.env = self:defaultEnv()
+end
+
+function SceneStack:defaultEnv()
+    return setmetatable({}, {__index = _G})
 end
 
 function SceneStack:message(msg, ...)
@@ -18,10 +23,24 @@ function SceneStack:message(msg, ...)
     end
 end
 
+function SceneStack:updateEnv()
+    local env = self:defaultEnv()
+    for _, scene in ipairs(self) do
+        local sceneEnv = scene:getEnv()
+        if sceneEnv then
+            for k, v in pairs(sceneEnv) do
+                env[k] = v
+            end
+        end
+    end
+    self.env = env
+end
+
 function SceneStack:push(scene, ...)
     self:message("setFocused", false)
 
     self[#self + 1] = scene
+    self:updateEnv()
 
     self:message("setFocused", true)
 end
@@ -33,14 +52,15 @@ function SceneStack:pop(...)
 
     local scene = self[#self]
     self[#self] = nil
+    self:updateEnv()
 
     self:message("setFocused", true)
     return scene
 end
 
---- Pop scenes until we reach the target scene and pop it. If
+--- Pop scenes until we reach the target scene, and do not pop the target. If
 -- the target scene isn't in the scene stack, nothing will happen.
-function SceneStack:popAll(target)
+function SceneStack:popUntil(target)
     local index
     for i = #self, 1, -1 do
         if self[i] == target then
@@ -51,10 +71,11 @@ function SceneStack:popAll(target)
 
     if index then
         self:message("setFocused", false)
-        for i = #self, index, -1 do
+        for i = #self, index + 1, -1 do
             self:message("pop")
             self[#self] = nil
         end
+        self:updateEnv()
         self:message("setFocused", true)
     end
 end
