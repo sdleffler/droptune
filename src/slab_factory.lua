@@ -16,6 +16,7 @@ return function()
     package.loaded.ffi = unload.ffi
 
     local Slab = dtrequire("lib.Slab")
+    Slab.SetINIStatePath(nil)
     local SlabDebug = dtrequire("lib.Slab.SlabDebug")
 
     -- Deshenaniganize.

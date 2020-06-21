@@ -7,7 +7,7 @@ function NameComponent:init(name)
     self.name = name
 end
 
-editable.register(NameComponent, {
+editable.registerComponent(NameComponent, {
     buildUI = function(namecomponent, Slab)
         Slab.Text("Name: ")
         Slab.SameLine()

@@ -1,6 +1,12 @@
 local prototype = dtrequire("prototype")
 
+local Scene = dtrequire("scene.Scene")
+local ConsoleScene = dtrequire("console").ConsoleScene
 local SceneStack = prototype.new()
+
+function SceneStack:init()
+    self.console = ConsoleScene:new()
+end
 
 function SceneStack:message(msg, ...)
     local top = #self
@@ -99,15 +105,8 @@ function SceneStack:installHooks(table)
     end
 end
 
-local Scene = prototype.new()
-
-function Scene:message(msg, agent, ...)
-    local func = self[msg]
-    if func then
-        return true, func(self, agent, ...)
-    else
-        return false
-    end
+function SceneStack:openConsole()
+    self:push(self.console)
 end
 
 return {

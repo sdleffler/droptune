@@ -23,52 +23,98 @@ end
 -- an ugly hack, but it works. Internally for submodules of droptune, we
 -- call dtrequire("module.path") rather than require("module.path").
 local dotdotdot = ...
-local dtpath = (...):gsub("%.init$", "") .. "."
 
 function _G.dtrequire(s)
-    return require(dtpath .. s)
+    return require(DROPTUNE_MODULE .. s)
 end
 
 function _G.dtload(s)
-    local path = dtpath:gsub("%.", "/") .. s
+    local path = DROPTUNE_SRC .. s
     return love.filesystem.load(path)
 end
 
-_G.DROPTUNE_MODULE = dtpath
+function droptune.findModuleDirectory(modulepath)
+    if LOGGER then
+        LOGGER:info("Searching for module %s in filesystem...", modulepath)
+    end
 
-local status, err = pcall(function()
-    droptune.log = dtrequire("log")
+    local modulesubdir = modulepath:gsub("%.", "/")
+    for path in string.gmatch(packagepath, "[^;]+%.lua") do
+        local candidate = path:gsub("%?", modulesubdir)
+        if LOGGER then
+            LOGGER:info("\tChecking at %s", candidate)
+        end
+        
+        local ok, chunk, result
+        ok, chunk = love.filesystem.load(candidate)
+        if not ok then
+            if LOGGER then
+                LOGGER:info("\tCouldn't load file %s: `%s`, moving on...", candidate, tostring(chunk))
+            end
+        else
+            local found = path:gsub("%?", modulesubdir):gsub("[^;/]+%.lua$", "")
+            if LOGGER then
+                LOGGER:info("\tLoaded Lua file at %s, success!", candidate)
+                LOGGER:info("\tmodule directory found: %s", found)
+            end
+            return found
+        end
+    end
 
-    _G.LOGGER = droptune.log.Logger:new({minimum = "info"})
+    LOGGER:warn("Module %s not found...", modulepath)
+end
 
-    LOGGER:info("Logger initialized")
-    LOGGER:info("DROPTUNE_MODULE = `%s`", DROPTUNE_MODULE)
+function droptune.recursiverequire(modulepath, relative)
+    relative = relative or ""
+    local love, LOGGER = love, LOGGER
 
-    if love then
-        LOGGER:info("Searching for droptune src directory...")
-
-        local dtsubdir = dotdotdot:gsub("%.init$", ""):gsub("%.", "/")
-        for path, filepath in string.gmatch(packagepath, "(([^;]+)%.lua)") do
-            local candidate = path:gsub("%?", dtsubdir .. "/init")
-            LOGGER:info("\tChecking for init.lua at %s", candidate)
-            
-            local ok, chunk, result
-            ok, chunk = pcall(love.filesystem.load, candidate)
-            if not ok then
-                LOGGER:warn("\tCouldn't load file %s: %s", candidate, tostring(chunk))
+    function inner(directoryPath)
+        local files = love.filesystem.getDirectoryItems(directoryPath)
+        local loaded = {}
+        while #files > 0 do
+            local path = table.remove(files)
+            local fullpath = directoryPath .. "/" .. path
+            local found = fullpath:find("%.lua$")
+            if found then
+                local includePath = fullpath:sub(1, found-1):gsub("/", ".")
+                local name = path:sub(1, path:find("%.lua$")-1)
+                LOGGER:info("\tloading: %s from %s", includePath, fullpath)
+                loaded[name] = require(includePath)
             else
-                ok, result = pcall(chunk, "CHECKEXISTS")
-            
-                if not ok then
-                    LOGGER:warn("\tCouldn't call chunk from %s: %s", candidate, tostring(result))
-                elseif result == "FUCKYEAH" then
-                    _G.DROPTUNE_SRC = filepath:gsub("%?", dtsubdir)
-                    LOGGER:info("src directory found: %s", DROPTUNE_SRC)
-                    break
+                local info = love.filesystem.getInfo(fullpath)
+                if info and info.type == "directory" then
+                    loaded[path] = inner(fullpath)
+                else
+                    LOGGER:warn("odd path found: `%s`, are you sure recursiverequire is being run in the right place?", fullpath)
                 end
             end
         end
+        return loaded
     end
+
+    local basepath = droptune.findModuleDirectory(modulepath) .. relative
+    LOGGER:info("beginning recursive require with base path `%s`", basepath)
+    return inner(basepath)
+end
+
+function _G.recursivedtrequire(path, relative)
+    return droptune.recursiverequire(DROPTUNE_MODULE .. path, relative)
+end
+
+_G.DROPTUNE_MODULE = droptune.findModuleDirectory(dotdotdot):gsub("/", ".")
+
+local status, err = xpcall(function()
+    droptune.log = dtrequire("log") 
+    _G.LOGGER = droptune.log.Logger:new({minimum = "info"})
+    LOGGER:info("Logger initialized")
+    LOGGER:info("DROPTUNE_MODULE = `%s`", DROPTUNE_MODULE)
+    if love then
+        LOGGER:info("Searching for droptune src directory...")
+        _G.DROPTUNE_SRC = droptune.findModuleDirectory(dotdotdot)
+        _G.DROPTUNE_BASE = DROPTUNE_SRC:match("(.*)src/$")
+    end
+    LOGGER:info("DROPTUNE_SRC = `%s`", DROPTUNE_SRC)
+    LOGGER:info("DROPTUNE_BASE = `%s`", DROPTUNE_BASE)
 
     droptune.agent = dtrequire("agent")
     droptune.components = dtrequire("components")
@@ -77,10 +123,11 @@ local status, err = pcall(function()
     droptune.entity = dtrequire("entity")
     droptune.prototype = dtrequire("prototype")
     droptune.scene = dtrequire("scene")
+    droptune.systems = dtrequire("systems")
 
     droptune.bitser = dtrequire("lib.bitser")
     droptune.tiny = dtrequire("lib.tiny")
-end)
+end, debug.traceback)
 
 -- We caught any potential errors so that we could put `require`
 -- back. But we still need to propagate any if they occurred.

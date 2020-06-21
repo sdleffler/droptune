@@ -13,17 +13,13 @@ function Component:subtype(namestring, shortnamestring)
     local subty = prototype.Prototype.subtype(self, namestring, shortnamestring)
 
     function subty.filter(system, e)
-        return e[subty]
+        return e[subty] ~= nil
     end
 
     return subty
 end
 
 local Entity = prototype.new()
-
--- function Entity:__newindex()
---     error("entities are not arbitrarily writable - use Entity.addComponent")
--- end
 
 function Entity:init(...)
     for _, v in ipairs({...}) do

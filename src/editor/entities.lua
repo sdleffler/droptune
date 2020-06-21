@@ -1,5 +1,6 @@
 local fuzzel = dtrequire("lib.fuzzel")
 
+local Entity, Component = unpack(dtrequire("entity"))
 local Agent, State = unpack(dtrequire("agent"))
 local components = dtrequire("components")
 local editable = dtrequire("editable")
@@ -241,7 +242,7 @@ do
 
     local open = State:new()
 
-    function open.editEntity(agent, entity, component)
+    local function editEntity(agent, entity, component)
         local info = agent.tracker[entity]
 
         local edit = info.windows.edit
@@ -253,14 +254,15 @@ do
         edit:message("openComponent", component)
     end
 
-    function open.contextMenu(agent, entity)
+    local function contextMenu(agent, entity)
         local Slab = agent.Slab
 
         if Slab.MenuItem("Add entity...") then
             print("ADD NEW ENTITY")
+            agent:setState("adding")
         end
 
-        if Slab.MenuItem("Add component...") then
+        if entity and Slab.MenuItem("Add component...") then
             print("ADD NEW COMPONENT " .. tostring(entity))
             local info = agent.tracker[entity]
             
@@ -274,7 +276,7 @@ do
         end
     end
 
-    function open.buildEntityTree(agent)
+    local function buildEntityTree(agent)
         local Slab = agent.Slab
 
         for i, entity in ipairs(agent.tracker.entities) do
@@ -294,7 +296,7 @@ do
             })
 
             if Slab.BeginContextMenuItem() then
-                agent:message("contextMenu", entity)
+                contextMenu(agent, entity)
                 Slab.EndContextMenu()
             end
 
@@ -303,7 +305,7 @@ do
                 agent.subselected = nil
 
                 if Slab.IsMouseDoubleClicked() then
-                    agent:message("editEntity", entity, nil)
+                    editEntity(agent, entity, nil)
                 end
             end
 
@@ -319,7 +321,7 @@ do
                     })
 
                     if Slab.BeginContextMenuItem() then
-                        agent:message("contextMenu", entity)
+                        contextMenu(agent, entity)
                         Slab.EndContextMenu()
                     end
 
@@ -328,7 +330,7 @@ do
                         agent.subselected = instance
 
                         if Slab.IsMouseDoubleClicked() then
-                            agent:message("editEntity", entity, component)
+                            editEntity(agent, entity, component)
                         end
                     end
                 end
@@ -338,7 +340,27 @@ do
         end
     end
 
-    function open.update(agent, dt, world)
+    local function buildEntityView(agent)
+        local Slab = agent.Slab
+
+        local w, _ = Slab.GetWindowSize()
+        Slab.Input("Filter-Query", {W = w - 40 - 4})
+        Slab.SameLine()
+        Slab.SetCursorPos(w - 40, nil, {})
+
+        if Slab.Button("Adv.", {Tooltip = "Advanced Filter Options", W = 32, H = 16}) then
+            agent.filterWindow:message("open")
+        end
+
+        Slab.Separator()
+
+        if Slab.BeginTree("Root", {OpenWithHighlight = false}) then
+            buildEntityTree(agent)
+            Slab.EndTree()
+        end
+    end
+
+    function open.update(agent, dt)
         local Slab = agent.Slab
 
         if not Slab.BeginWindow("Droptune-Editor-Entities", {
@@ -349,23 +371,11 @@ do
             agent:setState("closed")
         end
 
-        local w, _ = Slab.GetWindowSize()
-        Slab.Input("Filter-Query", {W = w - 40 - 4})
-        Slab.SameLine()
-        Slab.SetCursorPos(w - 40, nil, {})
+        buildEntityView(agent)
 
-        if Slab.Button("Adv.", {Tooltip = "Advanced Filter Options", W = 32, H = 16}) then
-            agent.filterWindow:message("open")
-        end
-        --Slab.EndLayout()
-
-        Slab.Separator()
-
-        if world then
-            if Slab.BeginTree("Root", {OpenWithHighlight = false}) then
-                agent:message("buildEntityTree")
-                Slab.EndTree()
-            end
+        if Slab.BeginContextMenuWindow() then
+            contextMenu(agent, nil)
+            Slab.EndContextMenu()
         end
 
         Slab.EndWindow()
@@ -381,15 +391,65 @@ do
         agent:setState("closed")
     end
 
+    local adding = State:new()
+
+    function adding.update(agent, dt)
+        local Slab, world = agent.Slab, agent.world
+        
+        if not Slab.BeginWindow("Droptune-Editor-Entities", {
+            Title = "Entities", 
+            IsOpen = true, 
+            AutoSizeWindow = false
+        }) then
+            agent:setState("closed")
+        end
+
+        buildEntityView(agent)
+
+        Slab.Separator()
+
+        Slab.BeginLayout("NewEntityLayout", {ExpandW = true})
+        Slab.Text("Name: ")
+        Slab.SameLine()
+
+        if Slab.Input("NewEntityName", {ReturnOnText = false}) then
+            local name = Slab.GetInputText()
+            local entity = Entity:new(NameComponent:new(name))
+            world:addEntity(entity)
+            agent:setState("open")
+        end
+
+        Slab.EndLayout()
+
+        if Slab.BeginContextMenuWindow() then
+            contextMenu(agent, nil)
+            Slab.EndContextMenu()
+        end
+
+        Slab.EndWindow()
+
+        agent.filterWindow:update(dt)
+    end
+
+    function adding.isOpen()
+        return true
+    end
+
+    function adding.viewToggle(agent)
+        agent:setState("closed")
+    end
+
     local states = {
         closed = closed,
         open = open,
+        adding = adding,
     }
 
     function EntitiesWindow:init(Slab, tracker)
         Agent.init(self, states)
         self.Slab = Slab
         self.tracker = tracker
+        self.world = tracker.world
         self:pushState("closed")
         self.filterWindow = EntitiesFilterWindow:new(Slab)
     end

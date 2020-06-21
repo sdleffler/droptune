@@ -134,7 +134,11 @@ local function rawSubtype(this, namestring, shortnamestring)
     end
 
     if namestring then
-        bitser.register(namestring, this)
+        if LOGGER then 
+            LOGGER:debug("bitser.register(%s, %s)", namestring, subtype)
+        end
+
+        bitser.register(namestring, subtype)
     else
         namestring = tostring(subtype)
     end
@@ -213,12 +217,12 @@ function Prototype:__tostring()
 end
 
 function Prototype:implements(interface)
-    return interface[self:prototype()]
+    return interface[self:prototype()] ~= nil
 end
 
 function prototype.isPrototyped(obj)
     local mt = getmetatable(obj)
-    return rawget(mt, supertypeTableKey) ~= nil
+    return mt and rawget(mt, supertypeTableKey) ~= nil
 end
 
 function prototype.isPrototype(proto)
@@ -236,7 +240,8 @@ function prototype.newInterface(table)
     for k, v in pairs(table) do
         if type(k) == "string" then
             table[k] = function(obj, ...)
-                local t = assert(Prototype.prototype(obj))
+                local t = assert(Prototype.prototype(obj), 
+                    "cannot lookup interface implementation for nil or non-prototyped object!")
                 return (table[t][k] or v)(obj, ...)
             end
         end
