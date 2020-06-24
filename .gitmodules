@@ -8,3 +8,6 @@
 	path = src/lib/Slab
 	url = https://github.com/sdleffler/Slab
 	branch = 0.7.0c
+[submodule "src/lib/peachy"]
+	path = src/lib/peachy
+	url = https://github.com/sdleffler/peachy
