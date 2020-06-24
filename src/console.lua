@@ -5,12 +5,38 @@ local ConsoleScene = Scene:subtype()
 
 function ConsoleScene:init()
     self.Slab = slabFactory().Slab
-    self.Slab.Initialize()
+
+    self.slabhooks = {}
+    self.Slab.Initialize(nil, self.slabhooks)
 
     self.fonts = dtrequire("fonts")
     self.Slab.PushFont(self.fonts.firaRegular)
 
-    self.Slab.Update(0)
+    local mouseX, mouseY = 0, 0
+    self.slabmouse = {
+        isDown = function(button)
+            return self.focused and love.mouse.isDown(button)
+        end,
+
+        getPosition = function(button)
+            if self.focused then
+                mouseX, mouseY = love.mouse.getPosition()
+            end
+
+            return mouseX, mouseY
+        end,
+    }
+
+    self.slabkeyboard = {
+        isDown = function(key)
+            return self.focused and love.keyboard.isDown(key)
+        end,
+    }
+
+    self.Slab.Update(0, {
+        MouseAccessors = self.slabmouse,
+        KeyboardAccessors = self.slabkeyboard,
+    })
 
     self.focused = false
     self.output = ""
@@ -30,7 +56,10 @@ end
 
 function ConsoleScene:update(scenestack, dt)
     local Slab = self.Slab
-    Slab.Update(dt)
+    Slab.Update(dt, {
+        MouseAccessors = self.slabmouse, 
+        KeyboardAccessors = self.slabkeyboard,
+    })
 
     local w, h = love.graphics.getDimensions()
     Slab.BeginWindow("Console", {
@@ -102,8 +131,11 @@ function ConsoleScene:update(scenestack, dt)
     self.inputFocused = Slab.IsInputFocused("Input")
 
     Slab.EndLayout()
-
     Slab.EndWindow()
+
+    if Slab.IsVoidClicked() and Slab.IsMouseDoubleClicked() then
+        scenestack:pop()
+    end
 end
 
 function ConsoleScene:draw(scenestack)
@@ -131,6 +163,18 @@ function ConsoleScene:keypressed(scenestack, key, scancode, isrepeat)
     elseif key == "`" and love.keyboard.isDown("lctrl", "lshift") then
         scenestack:pop()
     end
+end
+
+function ConsoleScene:textinput(scenestack, ...)
+    self.slabhooks.textinput(...)
+end
+
+function ConsoleScene:wheelmoved(scenestack, ...)
+    self.slabhooks.wheelmoved(...)
+end
+
+function ConsoleScene:quit(scenestack, ...)
+    self.slabhooks.quit(...)
 end
 
 return {

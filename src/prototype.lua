@@ -25,24 +25,6 @@ function Prototype:new(...)
     return this
 end
 
--- function Prototype.fromTable(obj, proto)
---     return setmetatable(obj, proto)
--- end
-
--- function Prototype:toTable()
---     local t = {}
-
---     for k, v in pairs(self) do
---         t[k] = v
---     end
-
---     for i, v in ipairs(self) do
---         t[i] = v
---     end
-
---     return t
--- end
-
 local function sanitizeSourcePath(path)
     return path:gsub("\\", "/"):gsub("^%./", "")
 end
@@ -107,14 +89,29 @@ function prototype.tryNameFromDebugInfo()
     return string.format("%s@%s", namestring, sanitizeSourcePath(info.short_src)), namestring
 end
 
-local function rawSubtype(this, namestring, shortnamestring)
-    assert((name == nil or type(name) == "string"), "Prototype:subtype expects a string name as its only (optional) argument.")
+local function rawsubtype(this, table, namestring, shortnamestring)
+    local subtype = table or {}
 
-    local subtype = {}
+    -- If we're trying to create a Prototype out of a non-Prototype metatable,
+    -- we need to copy over the __index if it's not already self-referential.
+    local subtypeIndex = subtype.__index
+    if subtypeIndex and subtypeIndex ~= subtype then
+        for k, v in pairs(subtypeIndex) do
+            subtype[k] = v
+        end
+
+        for i, v in ipairs(subtypeIndex) do
+            subtype[i] = v
+        end
+    end
 
     -- Instead of using __index, make a shallow copy of the supertype.
     for k, v in pairs(this) do
-        subtype[k] = v
+        -- Avoid overwriting already-present keys; treat the provided
+        -- table as an already-present subclass
+        if not subtype[k] then
+            subtype[k] = v
+        end
     end
 
     local metatable = getmetatable(this)
@@ -134,11 +131,11 @@ local function rawSubtype(this, namestring, shortnamestring)
     end
 
     if namestring then
-        if LOGGER then 
+        if LOGGER then
             LOGGER:debug("bitser.register(%s, %s)", namestring, subtype)
         end
 
-        bitser.register(namestring, subtype)
+        bitser.registerClass(namestring, subtype)
     else
         namestring = tostring(subtype)
     end
@@ -150,12 +147,14 @@ local function rawSubtype(this, namestring, shortnamestring)
 end
 
 function Prototype:subtype(namestring, shortnamestring)
-    return rawSubtype(self, namestring, shortnamestring)
+    return rawsubtype(self, {}, namestring, shortnamestring)
 end
 
 function prototype.new(...)
-    return rawSubtype(Prototype, ...)
+    return rawsubtype(Prototype, ...)
 end
+
+prototype.rawsubtype = rawsubtype
 
 function prototype.disallowSubtype(ty)
     assert(ty ~= Prototype, "don't fuck up the base type")  
@@ -163,11 +162,6 @@ function prototype.disallowSubtype(ty)
     ty.subtype = function()
         error("subtyping has been prohibited for this type")
     end
-end
-
-function Prototype:prototype()
-    return (self and rawget(self, isPrototypeTableKey) and self)
-        or getmetatable(self)
 end
 
 function Prototype:super()
@@ -217,7 +211,7 @@ function Prototype:__tostring()
 end
 
 function Prototype:implements(interface)
-    return interface[self:prototype()] ~= nil
+    return interface[prototype.of(self)] ~= nil
 end
 
 function prototype.isPrototyped(obj)
@@ -227,6 +221,22 @@ end
 
 function prototype.isPrototype(proto)
     return type(proto) == "table" and rawget(proto, supertypeTableKey) ~= nil
+end
+
+function prototype.of(obj)
+    return (type(obj) == "table" and rawget(obj, isPrototypeTableKey) and obj)
+        or getmetatable(obj)
+end
+
+function prototype.is(obj, proto)
+    local m = getmetatable(obj)
+    while m do
+        if m == proto then
+            return true
+        end
+        m = m[supertypeTableKey]
+    end
+    return false
 end
 
 local Interface = prototype.new()
@@ -240,9 +250,11 @@ function prototype.newInterface(table)
     for k, v in pairs(table) do
         if type(k) == "string" then
             table[k] = function(obj, ...)
-                local t = assert(Prototype.prototype(obj), 
+                local t = assert(prototype.of(obj), 
                     "cannot lookup interface implementation for nil or non-prototyped object!")
-                return (table[t][k] or v)(obj, ...)
+                local impl = assert(table[t],
+                    "interface not implemented!")
+                return (impl[k] or v)(obj, ...)
             end
         end
     end
@@ -250,8 +262,8 @@ function prototype.newInterface(table)
     return setmetatable(table, Interface)
 end
 
-function Interface:__newindex()
-    error("interface not arbitrarily assignable!")
+function Interface:__newindex(proto, methods)
+    prototype.registerInterface(self, proto, methods)
 end
 
 function prototype.registerInterface(interface, proto, methods)

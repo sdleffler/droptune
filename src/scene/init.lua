@@ -39,6 +39,7 @@ end
 function SceneStack:push(scene, ...)
     self:message("setFocused", false)
 
+    scene.parent = self[#self]
     self[#self + 1] = scene
     self:updateEnv()
 
@@ -51,6 +52,7 @@ function SceneStack:pop(...)
     self:message("pop", ...)
 
     local scene = self[#self]
+    scene.parent = nil
     self[#self] = nil
     self:updateEnv()
 
@@ -73,6 +75,7 @@ function SceneStack:popUntil(target)
         self:message("setFocused", false)
         for i = #self, index + 1, -1 do
             self:message("pop")
+            self[#self].parent = nil
             self[#self] = nil
         end
         self:updateEnv()

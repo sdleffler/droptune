@@ -1,5 +1,5 @@
 local prototype = dtrequire("prototype")
-local _, Component = unpack(dtrequire("entity"))
+local _, Component = dtrequire("entity").common()
 
 local State = prototype.new()
 

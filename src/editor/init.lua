@@ -2,12 +2,16 @@ local slabFactory = dtrequire("slab_factory")
 local tiny = dtrequire("lib.tiny")
 
 local console = dtrequire("console")
+local ecs = dtrequire("ecs")
+local editable = dtrequire("editable")
 local prototype = dtrequire("prototype")
 local scene = dtrequire("scene")
 
 local entities = dtrequire("editor.entities")
+local files = dtrequire("editor.files")
 local systems = dtrequire("editor.systems")
 
+local Container = editable.Container
 local ConsoleScene = console.ConsoleScene
 local NameComponent = dtrequire("components").NameComponent
 
@@ -102,15 +106,42 @@ end
 
 local EditorScene = scene.Scene:subtype()
 
-function EditorScene:init(world)
+function EditorScene:init(attachable)
     local mod = slabFactory()
     self.Slab = mod.Slab
     self.SlabDebug = mod.SlabDebug
 
-    self.Slab.Initialize()
-    self.Slab.Update(0)
+    self.slabhooks = {}
+    self.Slab.Initialize(nil, self.slabhooks)
 
-    self.world = world or tiny.world()
+    local mouseX, mouseY = 0, 0
+    self.slabmouse = {
+        isDown = function(button)
+            return self.focused and love.mouse.isDown(button)
+        end,
+
+        getPosition = function(button)
+            if self.focused then
+                mouseX, mouseY = love.mouse.getPosition()
+            end
+
+            return mouseX, mouseY
+        end,
+    }
+
+    self.slabkeyboard = {
+        isDown = function(key)
+            return self.focused and love.keyboard.isDown(key)
+        end,
+    }
+
+    self.Slab.Update(0, {
+        MouseAccessors = self.slabmouse,
+        KeyboardAccessors = self.slabkeyboard,
+    })
+
+    self.attached = attachable
+    self.world = (attachable and Container.getWorld(attachable)) or ecs.World:new()
     self.tracker = self.world:addSystem(PoolSystem:new())
 
     self.focused = false
@@ -118,6 +149,7 @@ function EditorScene:init(world)
     self.mouseBlocked = false
 
     self.entitiesWindow = entities.EntitiesWindow:new(self.Slab, self.tracker)
+    self.fileWindow = files.FileWindow:new(self.Slab)
     self.systemsWindow = systems.SystemsWindow:new(self.Slab, self.tracker)
 end
 
@@ -136,15 +168,14 @@ end
 
 function EditorScene:setFocused(scenestack, focused)
     self.focused = focused
-
-    if focused then
-        self.parent = scenestack[#scenestack - 1]
-    end
 end
 
 function EditorScene:update(scenestack, dt)
     local Slab, SlabDebug = self.Slab, self.SlabDebug
-    Slab.Update(dt)
+    Slab.Update(dt, {
+        MouseAccessors = self.slabmouse,
+        KeyboardAccessors = self.slabkeyboard,
+    })
 
     if Slab.BeginMainMenuBar() then
         if Slab.BeginMenu("Editor") then
@@ -156,6 +187,18 @@ function EditorScene:update(scenestack, dt)
 
             if Slab.MenuItem("Close") then
                 scenestack:pop()
+            end
+
+            Slab.EndMenu()
+        end
+
+        if Slab.BeginMenu("File") then
+            if Slab.MenuItem("Open") then
+                self.fileWindow:message("openFile")
+            end
+
+            if Slab.MenuItem("Save") then
+                self.fileWindow:message("saveFile")
             end
 
             Slab.EndMenu()
@@ -200,6 +243,7 @@ function EditorScene:update(scenestack, dt)
     self.world:refresh()
     self.tracker:update(dt)
     self.entitiesWindow:update(dt)
+    self.fileWindow:update(dt)
     self.systemsWindow:update(dt)
 
     -- TODO: less "hard" pausing
@@ -240,6 +284,18 @@ function EditorScene:mousereleased(scenestack, ...)
     if self:isMouseUnobstructed() and parent and not self.pauseParent then
         parent:message("mousereleased", scenestack, ...)
     end
+end
+
+function EditorScene:textinput(scenestack, ...)
+    self.slabhooks.textinput(...)
+end
+
+function EditorScene:wheelmoved(scenestack, ...)
+    self.slabhooks.wheelmoved(...)
+end
+
+function EditorScene:quit(scenestack, ...)
+    self.slabhooks.quit(...)
 end
 
 return {

@@ -5,10 +5,7 @@ local editable = {}
 local Editable = {}
 
 function Editable:buildUI(Slab) end
-
-function Editable:newDefault()
-    return nil
-end
+function Editable:newDefault() end
 
 editable.Editable = prototype.newInterface(Editable)
 
@@ -32,6 +29,16 @@ function editable.registerSystem(system, methods)
     local name = system:getPrototypeName()
     editable.registeredSystems[name] = system
     table.insert(editable.registeredSystemNames, name)
+end
+
+local Container = {}
+
+function Container:getWorld() end
+
+editable.Container = prototype.newInterface(Container)
+
+function editable.registerContainer(container, methods)
+    prototype.registerInterface(Container, container, methods)
 end
 
 return editable

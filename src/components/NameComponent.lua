@@ -1,7 +1,7 @@
-local _, Component = unpack(dtrequire("entity"))
+local _, Component = dtrequire("entity").common()
 local editable = dtrequire("editable")
 
-local NameComponent = Component:subtype()
+local NameComponent = Component:subtype({}, "droptune.components.NameComponent")
 
 function NameComponent:init(name)
     self.name = name
