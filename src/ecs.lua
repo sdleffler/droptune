@@ -56,16 +56,30 @@ end
 local Entity = prototype.new()
 ecs.Entity = Entity
 do
-    function Entity:init(...)
-        for _, v in ipairs({...}) do
-            self:addComponent(v)
+    function Entity:init(components)
+        if components then
+            for k, v in pairs(components) do
+                if type(k) == "number" then
+                    self:addComponent(v)
+                else
+                    self:addComponent(k, v)
+                end
+            end
         end
     end
 
-    function Entity:addComponent(component)
-        if component:elementOf(Component) then
-            rawset(self, prototype.of(component), component)
-            return component
+    function Entity:addComponent(...)
+        local component, instance
+        if select("#", ...) == 1 then
+            instance = ...
+            component = prototype.of(instance)
+        elseif select('#', ...) == 2 then
+            component, instance = ...
+        end
+
+        if prototype.subtypes(component, Component) then
+            rawset(self, component, instance)
+            return instance
         else
             error(string.format("%s is not not a component!", tostring(component)))
         end
@@ -270,12 +284,14 @@ do
                 local entry, finish = visitor.entry, visitor.finish
                 for k, v in pairs(serialized) do entry(obj, k, v) end
                 for i, v in ipairs(serialized) do entry(obj, i, v) end
-                e:addComponent(finish(obj))
-            else
+                e:addComponent(component, finish(obj))
+            elseif type(serialized) == "table" then
                 local instance = component:new()
                 for k, v in pairs(serialized) do instance[k] = v end
                 for i, v in ipairs(serialized) do instance[i] = v end
-                e:addComponent(instance)
+                e:addComponent(component, instance)
+            else
+                e:addComponent(component, serialized)
             end
         end
 

@@ -16,7 +16,7 @@ local tools = dtrequire("editor.tools")
 local Container = editable.Container
 local ConsoleScene = console.ConsoleScene
 local NameComponent = dtrequire("components").NameComponent
-local MultiStepRenderer = dtrequire("systems.render.MultiStepRenderer")
+local MultistageRenderer = dtrequire("systems.render.MultistageRenderer")
 
 local EditorSystem = ecs.ProcessingSystem:subtype("droptune.editor.EditorSystem")
 EditorSystem.active = false
@@ -108,10 +108,10 @@ function EditorSystem:process(e, dt)
     end
 end
 
-local EditorRenderer = MultiStepRenderer:subtype("droptune.editor.EditorRenderer")
+local EditorRenderer = MultistageRenderer:subtype("droptune.editor.EditorRenderer")
 
 function EditorRenderer:init(innerrenderer)
-    MultiStepRenderer.init(self,
+    MultistageRenderer.init(self,
         innerrenderer,
         renderers.TransformOverlayRenderer:new()
     )

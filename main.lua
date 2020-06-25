@@ -9,9 +9,12 @@ do
     local world = dr.ecs.World:new(dr.systems.PhysicsSystem:new())
     world:refresh()
 
-    world:addEntity(Entity:new(NameComponent:new("Foo")))
+    world:addEntity(Entity:new({[NameComponent] = "Foo"}))
     
-    local e = world:addEntity(Entity:new(NameComponent:new("Bar"), PhysicsComponent:new(world)))
+    local e = world:addEntity(Entity:new {
+        [NameComponent] = NameComponent:new("Bar"),
+        [PhysicsComponent] = PhysicsComponent:new(world)
+    })
     love.physics.newFixture(
         e[PhysicsComponent].body,
         love.physics.newRectangleShape(32, 32)
@@ -49,10 +52,10 @@ function love.load(args)
     world = dr.ecs.World:new()
     world:setRenderer(dr.systems.render.SpriteRenderer:new())
 
-    local e = dr.ecs.Entity:new(
+    local e = dr.ecs.Entity:new {
         dr.components.render.SpriteComponent:new("assets/love-logo.png"),
-        dr.components.TransformComponent:new(400, 300)
-    )
+        dr.components.TransformComponent:new(400, 300),
+    }
 
     world:addEntity(e)
     world:refresh()

@@ -239,6 +239,17 @@ function prototype.is(obj, proto)
     return false
 end
 
+function prototype.subtypes(sub, super)
+    local m = sub
+    while m do
+        if m == super then
+            return true
+        end
+        m = m[supertypeTableKey]
+    end
+    return false
+end
+
 local Interface = prototype.new()
 
 function prototype.newInterface(table)

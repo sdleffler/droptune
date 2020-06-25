@@ -84,7 +84,14 @@ do
 
                     if doTree then
                         Slab.Separator()
-                        Editable.buildUI(instance, Slab)
+
+                        local newvalue = Editable[component].buildUI(instance, Slab)
+                        if newvalue then
+                            -- Update in case this entity is replace-by-value instead
+                            -- of mutate-by-reference.
+                            entity[component] = newvalue
+                        end
+
                         Slab.EndTree()
                         Slab.Separator()
                     end
@@ -204,7 +211,7 @@ do
             local component = editable.registeredComponents[enteredName]
             local fresh = Editable.newDefault(component)
             if fresh then
-                entity:addComponent(fresh)
+                entity:addComponent(component, fresh)
                 agent:setState("open")
             else
                 print("Component has no default to add!")
@@ -280,12 +287,12 @@ do
         local Slab = agent.Slab
 
         for i, entity in ipairs(agent.tracker.entities) do
-            local namecomponent = entity[NameComponent]
+            local name = entity[NameComponent]
             local label
             local id = agent.tracker[entity].id
 
-            if namecomponent then
-                label = string.format("%s (%s)", namecomponent.name, tostring(entity))
+            if name then
+                label = string.format("%s (%s)", name, tostring(entity))
             end
         
             local doTree = Slab.BeginTree(id, {

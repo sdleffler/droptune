@@ -352,6 +352,8 @@ editable.registerComponent(PhysicsComponent, {
         else
             Slab.Text("Empty. Does this world have a PhysicsSystem?")
         end
+
+        return self
     end,
 })
 

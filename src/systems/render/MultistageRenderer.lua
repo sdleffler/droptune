@@ -1,16 +1,16 @@
 local Renderer = dtrequire("systems.render.Renderer")
 
-local MultiStepRenderer = Renderer:subtype({}, "droptune.systems.render.MultiStepRenderer")
+local MultistageRenderer = Renderer:subtype({}, "droptune.systems.render.MultistageRenderer")
 do
-    function MultiStepRenderer:init(...)
+    function MultistageRenderer:init(...)
         Renderer.init(self)
         self.children = {...}
     end
 
-    function MultiStepRenderer:setup(pipeline) end
-    function MultiStepRenderer:teardown(pipeline) end
+    function MultistageRenderer:setup(pipeline) end
+    function MultistageRenderer:teardown(pipeline) end
 
-    function MultiStepRenderer:draw(pipeline)
+    function MultistageRenderer:draw(pipeline)
         self:setup(pipeline)
         for _, child in ipairs(self.children) do
             child:draw(pipeline)
@@ -18,17 +18,17 @@ do
         self:teardown(pipeline)
     end
 
-    function MultiStepRenderer:onAddToWorld(world)
+    function MultistageRenderer:onAddToWorld(world)
         for _, child in ipairs(self.children) do
             world:addSystem(child)
         end
     end
 
-    function MultiStepRenderer:onRemoveFromWorld(world)
+    function MultistageRenderer:onRemoveFromWorld(world)
         for _, child in ipairs(self.children) do
             world:removeSystem(child)
         end
     end
 end
 
-return MultiStepRenderer
+return MultistageRenderer

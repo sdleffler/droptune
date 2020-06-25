@@ -25,7 +25,7 @@ end
 
 local statesToName, nameToStates = {}, {}
 
-function agent.registerStateTable(states, name)
+function agent.registerStateTable(name, states)
     statesToName[states], nameToStates[name] = name, states
 end
 

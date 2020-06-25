@@ -3,19 +3,21 @@ local editable = dtrequire("editable")
 
 local NameComponent = Component:subtype({}, "droptune.components.NameComponent")
 
-function NameComponent:init(name)
-    self.name = name
+function NameComponent:new(name)
+    return name
 end
 
 editable.registerComponent(NameComponent, {
-    buildUI = function(namecomponent, Slab)
+    buildUI = function(name, Slab)
         Slab.Text("Name: ")
         Slab.SameLine()
         if Slab.Input("NameComponentName", {
             ReturnOnText = false,
-            Text = namecomponent.name,
+            Text = name,
         }) then
-            namecomponent.name = Slab.GetInputText()
+            return Slab.GetInputText()
+        else
+            return name
         end
     end,
 
