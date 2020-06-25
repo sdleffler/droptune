@@ -1,7 +1,7 @@
 local components = dtrequire("components")
-local SpriteComponent = components.render.SpriteComponent
-local TransformComponent = components.TransformComponent
-local PhysicsComponent = components.PhysicsComponent
+local SpriteComponent = components.render.Sprite
+local TransformComponent = components.Transform
+local PhysicsComponent = components.Physics
 local Renderer = dtrequire("systems.render.Renderer")
 
 local SpriteRenderer = Renderer:subtype({}, "droptune.render.SpriteRenderer")

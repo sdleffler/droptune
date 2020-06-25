@@ -10,7 +10,7 @@ do
         local opts = opts or {}
 
         tiny.system(self)
-        self.filter = dtrequire("components.PhysicsComponent").filter
+        self.filter = dtrequire("components.Physics").filter
 
         -- We cannot use `self.world`; Tiny uses that to store a reference to
         -- the ECS world.

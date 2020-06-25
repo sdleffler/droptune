@@ -1,12 +1,14 @@
 local dr = require "src"
 
+dr.resource.addNamespace("test", "assets")
+
 local serialized
 do
     local Entity, Component = dr.ecs.common()
-    local NameComponent = dr.components.NameComponent
-    local PhysicsComponent = dr.components.PhysicsComponent
+    local NameComponent = dr.components.Name
+    local PhysicsComponent = dr.components.Physics
 
-    local world = dr.ecs.World:new(dr.systems.PhysicsSystem:new())
+    local world = dr.ecs.World:new(dr.systems.Physics:new())
     world:refresh()
 
     world:addEntity(Entity:new({[NameComponent] = "Foo"}))
@@ -35,7 +37,7 @@ do
 end
 
 do
-    local world = dr.ecs.World:new(dr.systems.PhysicsSystem:new())
+    local world = dr.ecs.World:new(dr.systems.Physics:new())
     world:refresh()
 
     world:deserializeEntities(serialized)
@@ -49,15 +51,26 @@ function love.load(args)
     scenestack = dr.scene.SceneStack:new()
     scenestack:installHooks(love)
 
-    world = dr.ecs.World:new()
+    world = dr.ecs.World:new(dr.systems.Physics:new())
     world:setRenderer(dr.systems.render.SpriteRenderer:new())
 
-    local e = dr.ecs.Entity:new {
-        dr.components.render.SpriteComponent:new("assets/love-logo.png"),
-        dr.components.TransformComponent:new(400, 300),
-    }
+    world:addEntity(dr.ecs.Entity:new {
+        dr.components.render.Sprite:new("test.love-logo"),
+        dr.components.Transform:new(400, 300),
+    })
 
-    world:addEntity(e)
+    local e = world:addEntity(dr.ecs.Entity:new {
+        [dr.components.Name] = dr.components.Name:new("Bar"),
+        [dr.components.Physics] = dr.components.Physics:new(world, 250, 800, "dynamic")
+    })
+
+    love.physics.newFixture(
+        e[dr.components.Physics].body,
+        love.physics.newRectangleShape(32, 32)
+    )
+
+    e[dr.components.Physics].body:setAngle(1.4)
+
     world:refresh()
 
     scenestack:push(dr.editor.EditorScene:new(world))

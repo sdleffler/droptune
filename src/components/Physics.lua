@@ -3,7 +3,7 @@ local editable = dtrequire("editable")
 local prototype = dtrequire("prototype")
 local _, Component = dtrequire("entity").common()
 
-local PhysicsSystem = dtrequire("systems.PhysicsSystem")
+local PhysicsSystem = dtrequire("systems.Physics")
 local PhysicsComponent = Component:subtype({}, "droptune.components.PhysicsComponent")
 
 -- Floating point epsilon for is-default-value comparisons during serialization

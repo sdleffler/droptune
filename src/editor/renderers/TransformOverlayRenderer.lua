@@ -1,5 +1,5 @@
 local components = dtrequire("components")
-local TransformComponent = components.TransformComponent
+local TransformComponent = components.Transform
 local Renderer = dtrequire("systems.render.Renderer")
 
 local TransformOverlayRenderer = Renderer:subtype("droptune.editor.TransformOverlayRenderer")
@@ -8,7 +8,8 @@ do
 
     function TransformOverlayRenderer:draw(pipeline)
         love.graphics.setColor(1, 0, 0)
-        love.graphics.setLineWidth(2)
+        love.graphics.setLineWidth(1)
+
         pipeline:transformed(function(l, t, w, h)
             for _, e in ipairs(self.entities) do
                 local tx = e[TransformComponent]
@@ -16,8 +17,9 @@ do
                 love.graphics.push()
                 love.graphics.translate(tx.x, tx.y)
                 love.graphics.rotate(tx.rot)
-                love.graphics.line(0, 32, 0, 0, 32, 0)
-                love.graphics.line(-4, 24, 0, 32, 4, 24)
+                love.graphics.scale(1 / pipeline.camera:getScale())
+                love.graphics.line(0, 16, 0, 0, 16, 0)
+                love.graphics.line(-2, 12, 0, 16, 2, 12)
                 love.graphics.pop()
             end
         end)

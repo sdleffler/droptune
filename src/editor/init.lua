@@ -113,7 +113,8 @@ local EditorRenderer = MultistageRenderer:subtype("droptune.editor.EditorRendere
 function EditorRenderer:init(innerrenderer)
     MultistageRenderer.init(self,
         innerrenderer,
-        renderers.TransformOverlayRenderer:new()
+        renderers.TransformOverlayRenderer:new(),
+        renderers.PhysicsOverlayRenderer:new()
     )
 end
 

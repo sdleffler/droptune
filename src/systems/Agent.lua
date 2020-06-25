@@ -1,4 +1,4 @@
-local AgentComponent = dtrequire("components").AgentComponent
+local AgentComponent = dtrequire("components.Agent")
 local ecs = dtrequire("ecs")
 local editable = dtrequire("editable")
 local prototype = dtrequire("prototype")
