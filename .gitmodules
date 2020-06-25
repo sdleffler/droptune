@@ -11,3 +11,6 @@
 [submodule "src/lib/peachy"]
 	path = src/lib/peachy
 	url = https://github.com/sdleffler/peachy
+[submodule "src/lib/HC"]
+	path = src/lib/HC
+	url = https://github.com/sdleffler/HC
