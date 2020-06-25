@@ -42,7 +42,7 @@ do
 end
 
 editable.registerSystem(PhysicsSystem, {
-    buildUI = function(self, Slab)
+    updateUI = function(self, Slab)
         Slab.Text("TODO. bug sleffy about this shit, they bein' fucking lazy, the nerve of this dipshit")
     end,
 

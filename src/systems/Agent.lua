@@ -14,7 +14,7 @@ end
 
 editable.registerSystem(AgentSystem, {
     -- Nothing to edit here.
-    buildUI = function(self, Slab) end,
+    updateUI = function(self, Slab) end,
 
     newDefault = function()
         return AgentSystem:new()

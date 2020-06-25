@@ -104,6 +104,10 @@ do
     function Agent:getState()
         return self.stack[#self.stack]
     end
+
+    function Agent:isHalted()
+        return #self.stack == 0
+    end
 end
 
 function agent.common()

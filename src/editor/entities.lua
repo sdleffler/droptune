@@ -85,7 +85,7 @@ do
                     if doTree then
                         Slab.Separator()
 
-                        local newvalue = Editable[component].buildUI(instance, Slab)
+                        local newvalue = Editable[component].updateUI(instance, Slab)
                         if newvalue then
                             -- Update in case this entity is replace-by-value instead
                             -- of mutate-by-reference.

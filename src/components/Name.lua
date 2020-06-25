@@ -8,7 +8,7 @@ function NameComponent:new(name)
 end
 
 editable.registerComponent(NameComponent, {
-    buildUI = function(name, Slab)
+    updateUI = function(name, Slab)
         Slab.Text("Name: ")
         Slab.SameLine()
         if Slab.Input("NameComponentName", {

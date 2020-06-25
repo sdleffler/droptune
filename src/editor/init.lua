@@ -1,5 +1,7 @@
 local slabFactory = dtrequire("slab_factory")
+local lume = dtrequire("lib.lume")
 local tiny = dtrequire("lib.tiny")
+local HC = dtrequire("lib.HC")
 
 local console = dtrequire("console")
 local ecs = dtrequire("ecs")
@@ -15,106 +17,165 @@ local tools = dtrequire("editor.tools")
 
 local Container = editable.Container
 local ConsoleScene = console.ConsoleScene
-local NameComponent = dtrequire("components").NameComponent
+local NameComponent = dtrequire("components").Name
+local PhysicsComponent = dtrequire("components").Physics
+local TransformComponent = dtrequire("components").Transform
 local MultistageRenderer = dtrequire("systems.render.MultistageRenderer")
 
-local EditorSystem = ecs.ProcessingSystem:subtype("droptune.editor.EditorSystem")
-EditorSystem.active = false
+local TrackerSystem = ecs.ProcessingSystem:subtype("droptune.editor.TrackerSystem")
+do
+    TrackerSystem.active = false
 
-function EditorSystem:init()
-    ecs.ProcessingSystem.init(self)
-    self.next = 1
-    self.unused = setmetatable({}, {__mode = "k"})
-    self.systems = setmetatable({}, {__mode = "v"})
-end
-
-function EditorSystem:alloc(obj)
-    local entry
-    if #self.unused > 0 then
-        entry = table.remove(self.unused)
-        self[obj] = entry
-    else
-        local i = self.next
-        self.next = i + 1
-        local s = "obj@" .. i
-        entry = {
-            index = i,
-            id = s,
-            windows = {},
-        }
-        self[obj] = entry
+    function TrackerSystem:init(camera)
+        ecs.ProcessingSystem.init(self)
+        self.next = 1
+        self.unused = {}
+        self.systems = {}
+        self.camera = camera
+        self.tool = tools.Look:new(camera)
+        self.interaction = nil
+        self.hc = HC.new()
     end
-    return entry
-end
 
-function EditorSystem:dealloc(obj)
-    local freed = self[obj]
-    self[obj] = nil
-    table.insert(self.unused, freed)
-end
-
---- Track *all* entities.
-function EditorSystem:filter(entity)
-    return true
-end
-
-function EditorSystem:onAddToWorld(world)
-    LOGGER:info("EditorSystem added to world %s", tostring(world))
-end
-
-function EditorSystem:onAdd(entity)
-    LOGGER:info("EditorSystem added entity %s (%s)",
-        tostring(entity),
-        entity[NameComponent] and entity[NameComponent].name or "unnamed")
-
-    self:alloc(entity)
-end
-
-function EditorSystem:onRemove(entity)
-    LOGGER:info("EditorSystem added entity %s (%s)",
-        tostring(entity),
-        entity[NameComponent] and entity[NameComponent].name or "unnamed")
-
-    self:dealloc(entity)
-end
-
-function EditorSystem:preProcess(dt)
-    local removed = {}
-
-    for i, system in ipairs(self.world.systems) do
-        if self.systems[i] ~= system then
-            self.systems[i] = system
+    function TrackerSystem:alloc(obj)
+        local entry
+        if #self.unused > 0 then
+            entry = table.remove(self.unused)
+            self[obj] = entry
+        else
+            local i = self.next
+            self.next = i + 1
+            local s = "obj@" .. i
+            entry = {
+                index = i,
+                id = s,
+                windows = {},
+            }
+            self[obj] = entry
         end
+        return entry
+    end
 
-        local info = self[system]
-        if not info then
-            info = self:alloc(system)
+    function TrackerSystem:dealloc(obj)
+        local freed = self[obj]
+        self[obj] = nil
+        table.insert(self.unused, freed)
+    end
+
+    --- Track *all* entities.
+    function TrackerSystem:filter(entity)
+        return true
+    end
+
+    function TrackerSystem:onAddToWorld(world)
+        LOGGER:info("TrackerSystem added to world %s", tostring(world))
+    end
+
+    function TrackerSystem:onAdd(entity)
+        LOGGER:info("TrackerSystem added entity %s (%s)",
+            tostring(entity),
+            entity[NameComponent] or "unnamed")
+
+        self:alloc(entity)
+    end
+
+    function TrackerSystem:onRemove(entity)
+        LOGGER:info("TrackerSystem added entity %s (%s)",
+            tostring(entity),
+            entity[NameComponent] or "unnamed")
+
+        self:dealloc(entity)
+    end
+
+    function TrackerSystem:preProcess(dt)
+        local removed = {}
+
+        for i, system in ipairs(self.world.systems) do
+            if self.systems[i] ~= system then
+                self.systems[i] = system
+            end
+
+            local info = self[system]
+            if not info then
+                info = self:alloc(system)
+            end
+
+            for _, w in pairs(info.windows) do
+                w:update(dt)
+            end
+        end 
+
+        while #self.systems > #self.world.systems do
+            self:dealloc(table.remove(self.systems))
         end
+    end
 
+    function TrackerSystem:process(e, dt)
+        local info = self[e]
         for _, w in pairs(info.windows) do
             w:update(dt)
         end
-    end 
 
-    while #self.systems > #self.world.systems do
-        self:dealloc(table.remove(self.systems))
+        for component, instance in e:iter() do
+            if component:implements(editable.Editable) then
+                local impl = editable.Editable[component].updateInteractableShapes
+                if impl then
+                    local cached = self[instance]
+                    if not cached then
+                        cached = self:alloc(instance)
+                    end
+                    impl(instance, self.hc, cached, self.camera)
+                end
+            end
+        end
     end
-end
 
-function EditorSystem:process(e, dt)
-    local info = self[e]
-    for _, w in pairs(info.windows) do
-        w:update(dt)
+    function TrackerSystem:setCamera(camera)
+        self.camera = camera
+        self.tool:setCamera(camera)
+    end
+
+    function TrackerSystem:message(msg, ...)
+        local handler = self[msg]
+        if handler then
+            handler(self, ...)
+        elseif self.interaction and self.interaction:isActive() then
+            if not self.interaction:message(msg, ...) then
+                self.tool:message(msg, ...)
+            end
+        else
+            self.tool:message(msg, ...)
+        end
+    end
+
+    function TrackerSystem:mousepressed(x, y, button)
+        if self.interaction and self.interaction:isActive() then
+            self.interaction:message("mousepressed", x, y, button)
+        elseif self.tool:isInactive() then
+            local touched = self.hc:shapesAt(x, y)
+            self.selected = lume.keys(touched)
+
+            if #self.selected == 1 then
+                self.interaction = self.selected[1].interaction
+                self.interaction:setCamera(self.camera)
+                self.interaction:message("mousepressed", x, y, button)
+            else
+                self.tool:message("mousepressed", x, y, button)
+            end
+        else
+            self.tool:message("mousepressed", x, y, button)
+        end
     end
 end
 
 local EditorRenderer = MultistageRenderer:subtype("droptune.editor.EditorRenderer")
 
-function EditorRenderer:init(innerrenderer)
+function EditorRenderer:init(tracker, innerrenderer)
     MultistageRenderer.init(self,
         innerrenderer,
         renderers.TransformOverlayRenderer:new(),
-        renderers.PhysicsOverlayRenderer:new()
+        renderers.PhysicsOverlayRenderer:new(),
+        renderers.InteractableOverlayRenderer:new(tracker)
     )
 end
 
@@ -154,8 +215,6 @@ function EditorScene:init(world)
         KeyboardAccessors = self.slabkeyboard,
     })
 
-    self.tool = tools.Look:new()
-
     world = world or ecs.World:new()
     if world then
         self:hookWorld(world)
@@ -172,11 +231,11 @@ end
 
 function EditorScene:hookWorld(world)
     self.world = world
-    self.tracker = world:addSystem(EditorSystem:new())
-    local worldRenderer = world:getRenderer()
-    world:setRenderer(EditorRenderer:new(worldRenderer))
     self.pipeline = world:getPipeline()
-    self.tool:setCamera(self.pipeline.camera)
+    self.tracker = world:addSystem(TrackerSystem:new())
+    self.tracker:setCamera(self.pipeline.camera)
+    local worldRenderer = world:getRenderer()
+    world:setRenderer(EditorRenderer:new(self.tracker, worldRenderer))
 end
 
 function EditorScene:message(msg, scenestack, ...)
@@ -231,8 +290,8 @@ function EditorScene:update(scenestack, dt)
         end
 
         if Slab.BeginMenu("Tool") then
-            if Slab.MenuItemChecked("Look", prototype.is(self.tool, tools.Look)) then
-                self.tool = tools.Look:new(self.world:getPipeline().camera)
+            if Slab.MenuItemChecked("Look", prototype.is(self.tracker.tool, tools.Look)) then
+                self.tracker.tool = tools.Look:new(self.world:getPipeline().camera)
             end
 
             Slab.EndMenu()
@@ -302,7 +361,7 @@ function EditorScene:mousemoved(scenestack, ...)
         if parent and not self.pauseParent then
             parent:message("mousemoved", scenestack, ...)
         else
-            self.tool:message("mousemoved", ...)
+            self.tracker:message("mousemoved", ...)
         end
     end
 end
@@ -313,7 +372,7 @@ function EditorScene:mousepressed(scenestack, ...)
         if parent and not self.pauseParent then
             parent:message("mousepressed", scenestack, ...)
         else
-            self.tool:message("mousepressed", ...)
+            self.tracker:message("mousepressed", ...)
         end
     end
 end
@@ -324,7 +383,7 @@ function EditorScene:mousereleased(scenestack, ...)
         if parent and not self.pauseParent then
             parent:message("mousereleased", scenestack, ...)
         else
-            self.tool:message("mousereleased", ...)
+            self.tracker:message("mousereleased", ...)
         end
     end
 end
@@ -335,7 +394,7 @@ end
 
 function EditorScene:wheelmoved(scenestack, x, y)
     if self:isMouseUnobstructed() then
-        self.tool:message("wheelmoved", x, y)
+        self.tracker:message("wheelmoved", x, y)
     else
         self.slabhooks.wheelmoved(x, y)
     end

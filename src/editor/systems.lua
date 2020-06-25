@@ -74,7 +74,7 @@ do
         if prototype.isPrototyped(system) then
             local label = system:getShortPrototypeName()
             if system:implements(Editable) then
-                Editable.buildUI(system, Slab)
+                Editable.updateUI(system, Slab)
             else
                 Slab.Text(label .. " does not implement Editable!")
             end

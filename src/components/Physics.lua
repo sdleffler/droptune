@@ -1,3 +1,5 @@
+local lume = dtrequire("lib.lume")
+
 local ecs = dtrequire("ecs")
 local editable = dtrequire("editable")
 local prototype = dtrequire("prototype")
@@ -279,7 +281,7 @@ ecs.Visitor[PhysicsComponent] = {
 }
 
 editable.registerComponent(PhysicsComponent, {
-    buildUI = function(self, Slab)
+    updateUI = function(self, Slab)
         if self.body then
             Slab.BeginLayout("PhysicsComponentLayout", {
                 Columns = 3,
@@ -354,6 +356,43 @@ editable.registerComponent(PhysicsComponent, {
         end
 
         return self
+    end,
+
+    updateInteractableShapes = function(self, hc, shapes, camera)
+        local x, y = camera:toScreen(self.body:getPosition())
+        if not shapes[1] then
+            shape = hc:circle(x, y, 4)
+            shape.interaction = editable.interactions.DragInteraction:new(
+                function(interaction, kind, x, y)
+                    if kind == "mouse" then
+                        self.body:setPosition(interaction.camera:toWorld(x, y))
+                    end
+                end,
+                1
+            )
+            shapes[1] = shape
+        else
+            shapes[1]:moveTo(x, y)
+        end
+
+        local tx = love.math.newTransform(x, y, self.body:getAngle())
+        local x, y = tx:transformPoint(16, 0)
+        if not shapes[2] then
+            shape = hc:circle(x, y, 4)
+            shape.interaction = editable.interactions.DragInteraction:new(
+                function(interaction, kind, x, y)
+                    if kind == "mouse" then
+                        local pivotx, pivoty = self.body:getPosition()
+                        local mousex, mousey = interaction.camera:toWorld(x, y)
+                        self.body:setAngle(lume.angle(pivotx, pivoty, mousex, mousey))
+                    end
+                end,
+                1
+            )
+            shapes[2] = shape
+        else
+            shapes[2]:moveTo(x, y)
+        end
     end,
 })
 
