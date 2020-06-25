@@ -1,7 +1,7 @@
 local fuzzel = dtrequire("lib.fuzzel")
 
-local Entity, Component = unpack(dtrequire("entity"))
-local Agent, State = unpack(dtrequire("agent"))
+local Entity, Component = dtrequire("entity").common()
+local Agent, State = dtrequire("agent").common()
 local components = dtrequire("components")
 local editable = dtrequire("editable")
 local prototype = dtrequire("prototype")
@@ -354,7 +354,7 @@ do
 
         Slab.Separator()
 
-        if Slab.BeginTree("Root", {OpenWithHighlight = false}) then
+        if Slab.BeginTree("Root", {OpenWithHighlight = false, IsOpen = true}) then
             buildEntityTree(agent)
             Slab.EndTree()
         end

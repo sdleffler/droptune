@@ -1,12 +1,12 @@
-local dt = require "src"
+local dr = require "src"
 
 local serialized
 do
-    local Entity, Component = dt.ecs.common()
-    local NameComponent = dt.components.NameComponent
-    local PhysicsComponent = dt.components.PhysicsComponent
+    local Entity, Component = dr.ecs.common()
+    local NameComponent = dr.components.NameComponent
+    local PhysicsComponent = dr.components.PhysicsComponent
 
-    local world = dt.ecs.World:new(dt.systems.PhysicsSystem:new())
+    local world = dr.ecs.World:new(dr.systems.PhysicsSystem:new())
     world:refresh()
 
     world:addEntity(Entity:new(NameComponent:new("Foo")))
@@ -27,29 +27,48 @@ do
     print(serialized)
 
     if not ok then
-        error("serialized failed with:\n" .. err)
+        error("serialize failed with:\n" .. err)
     end
 end
 
 do
-    local world = dt.ecs.World:new(dt.systems.PhysicsSystem:new())
+    local world = dr.ecs.World:new(dr.systems.PhysicsSystem:new())
     world:refresh()
 
     world:deserializeEntities(serialized)
     world:refresh()
 end
 
+local world, pipeline
+
 function love.load(args)
-    logger = dt.log.Logger:new({ minimum = "warn" })
-    scenestack = dt.scene.SceneStack:new()
-    scenestack:push(dt.editor.EditorScene:new())
+    logger = dr.log.Logger:new({ minimum = "warn" })
+    scenestack = dr.scene.SceneStack:new()
+    scenestack:installHooks(love)
+
+    world = dr.ecs.World:new()
+    world:setRenderer(dr.systems.render.SpriteRenderer:new())
+
+    local e = dr.ecs.Entity:new(
+        dr.components.render.SpriteComponent:new("assets/love-logo.png"),
+        dr.components.TransformComponent:new(400, 300)
+    )
+
+    world:addEntity(e)
+    world:refresh()
+
+    scenestack:push(dr.editor.EditorScene:new(world))
 end
 
 function love.update(dt)
+    dr.lurker.update()
     logger:push("info", "lol")
+    world:update(dt)
     scenestack:message("update", dt)
 end
 
 function love.draw()
-    scenestack:message("draw", dt)
+    love.graphics.clear(1.0, 1.0, 1.0, 1.0)
+    --world:draw()
+    scenestack:message("draw")
 end

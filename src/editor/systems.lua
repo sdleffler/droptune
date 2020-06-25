@@ -1,7 +1,7 @@
 local fuzzel = dtrequire("lib.fuzzel")
 
-local Entity, Component = unpack(dtrequire("entity"))
-local Agent, State = unpack(dtrequire("agent"))
+local Entity, Component = dtrequire("entity").common()
+local Agent, State = dtrequire("agent").common()
 local components = dtrequire("components")
 local editable = dtrequire("editable")
 local prototype = dtrequire("prototype")
@@ -156,10 +156,10 @@ do
         end
     end
 
-    local function buildSystemTree(agent)
+    local function buildSystemTree(agent, systems)
         local Slab = agent.Slab
 
-        for i, system in ipairs(agent.tracker.systems) do
+        for i, system in ipairs(systems) do
             local info = agent.tracker[system]
             local label
             if prototype.isPrototyped(system) then
@@ -195,6 +195,11 @@ do
                     Slab.Text("prototype: " .. system:getPrototypeName())
                 end
 
+                if system.children and #system.children > 0 then
+                    Slab.Text("children:")
+                    buildSystemTree(agent, system.children)
+                end
+
                 Slab.EndTree()
             end
         end
@@ -214,7 +219,7 @@ do
 
         Slab.Separator()
 
-        local doTree = Slab.BeginTree("Root", {OpenWithHighlight = false})
+        local doTree = Slab.BeginTree("Root", {OpenWithHighlight = false, IsOpen = true})
 
         if Slab.BeginContextMenuItem() then
             contextMenu(agent)
@@ -222,7 +227,7 @@ do
         end
         
         if doTree then
-            buildSystemTree(agent)
+            buildSystemTree(agent, agent.tracker.systems)
             Slab.EndTree()
         end
     end
@@ -354,6 +359,7 @@ do
         Agent.init(self, states)
         self.Slab = Slab
         self.tracker = tracker
+        self.world = tracker.world
         self:pushState("closed")
         self.filterWindow = SystemsFilterWindow:new(Slab)   
         self.searchresults = {}

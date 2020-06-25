@@ -87,12 +87,77 @@ do
     end
 end
 
-local World = prototype.new(tiny.world())
+local System = prototype.new()
+ecs.System = System
+do
+    function System:_tinyInit()
+        tiny.system(self)
+    end
+
+    function System:init()
+        self.children = {}
+        self:_tinyInit()
+    end
+
+    function System:setParent(parent)
+        self.parent = parent
+    end
+end
+
+local ProcessingSystem = System:subtype()
+ecs.ProcessingSystem = ProcessingSystem
+do
+    function ProcessingSystem:_tinyInit()
+        tiny.processingSystem(self)
+    end
+end
+
+local World = prototype.new(getmetatable(tiny.world()))
 ecs.World = World
 do
     function World:init(...)
+        -- The following entries are copied from tiny.lua.
+        -- If we don't do this, we end up with a single globally
+        -- shared copy of each of these tables among all Worlds.
+        self.entitiesToRemove = {}
+        self.entitiesToChange = {}
+        self.systemsToAdd = {}
+        self.systemsToRemove = {}
+        self.entities = {}
+        self.systems = {}
+
         self:add(...)
         self:refresh()
+
+        self.pipeline = dtrequire("systems.render.Pipeline"):new()
+    end
+
+    function World:getPipeline()
+        return self.pipeline
+    end
+
+    function World:setPipeline(pipeline)
+        self.pipeline = pipeline or dtrequire("systems.render.Pipeline"):new()
+    end
+
+    function World:getRenderer()
+        return self.renderer
+    end
+
+    function World:setRenderer(newrenderer)
+        if self.renderer then
+            self:removeSystem(self.renderer)
+        end
+
+        if newrenderer then
+            assert(prototype.is(newrenderer, dtrequire("systems.render.Renderer")))
+            self.renderer = newrenderer
+            self:addSystem(newrenderer)
+        end
+    end
+
+    function World:draw(pipeline)
+        self.renderer:draw(pipeline or self.pipeline)
     end
 
     function World:serializeEntities(write)

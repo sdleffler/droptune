@@ -9,22 +9,26 @@ local scene = dtrequire("scene")
 
 local entities = dtrequire("editor.entities")
 local files = dtrequire("editor.files")
+local renderers = dtrequire("editor.renderers")
 local systems = dtrequire("editor.systems")
+local tools = dtrequire("editor.tools")
 
 local Container = editable.Container
 local ConsoleScene = console.ConsoleScene
 local NameComponent = dtrequire("components").NameComponent
+local MultiStepRenderer = dtrequire("systems.render.MultiStepRenderer")
 
-local PoolSystem = tiny.processingSystem(prototype.new())
-PoolSystem.active = false
+local EditorSystem = ecs.ProcessingSystem:subtype("droptune.editor.EditorSystem")
+EditorSystem.active = false
 
-function PoolSystem:init()
+function EditorSystem:init()
+    ecs.ProcessingSystem.init(self)
     self.next = 1
     self.unused = setmetatable({}, {__mode = "k"})
     self.systems = setmetatable({}, {__mode = "v"})
 end
 
-function PoolSystem:alloc(obj)
+function EditorSystem:alloc(obj)
     local entry
     if #self.unused > 0 then
         entry = table.remove(self.unused)
@@ -43,38 +47,38 @@ function PoolSystem:alloc(obj)
     return entry
 end
 
-function PoolSystem:dealloc(obj)
+function EditorSystem:dealloc(obj)
     local freed = self[obj]
     self[obj] = nil
     table.insert(self.unused, freed)
 end
 
 --- Track *all* entities.
-function PoolSystem:filter(entity)
+function EditorSystem:filter(entity)
     return true
 end
 
-function PoolSystem:onAddToWorld(world)
-    LOGGER:info("PoolSystem added to world %s", tostring(world))
+function EditorSystem:onAddToWorld(world)
+    LOGGER:info("EditorSystem added to world %s", tostring(world))
 end
 
-function PoolSystem:onAdd(entity)
-    LOGGER:info("PoolSystem added entity %s (%s)",
+function EditorSystem:onAdd(entity)
+    LOGGER:info("EditorSystem added entity %s (%s)",
         tostring(entity),
         entity[NameComponent] and entity[NameComponent].name or "unnamed")
 
     self:alloc(entity)
 end
 
-function PoolSystem:onRemove(entity)
-    LOGGER:info("PoolSystem added entity %s (%s)",
+function EditorSystem:onRemove(entity)
+    LOGGER:info("EditorSystem added entity %s (%s)",
         tostring(entity),
         entity[NameComponent] and entity[NameComponent].name or "unnamed")
 
     self:dealloc(entity)
 end
 
-function PoolSystem:preProcess(dt)
+function EditorSystem:preProcess(dt)
     local removed = {}
 
     for i, system in ipairs(self.world.systems) do
@@ -97,16 +101,25 @@ function PoolSystem:preProcess(dt)
     end
 end
 
-function PoolSystem:process(e, dt)
+function EditorSystem:process(e, dt)
     local info = self[e]
     for _, w in pairs(info.windows) do
         w:update(dt)
     end
 end
 
+local EditorRenderer = MultiStepRenderer:subtype("droptune.editor.EditorRenderer")
+
+function EditorRenderer:init(innerrenderer)
+    MultiStepRenderer.init(self,
+        innerrenderer,
+        renderers.TransformOverlayRenderer:new()
+    )
+end
+
 local EditorScene = scene.Scene:subtype()
 
-function EditorScene:init(attachable)
+function EditorScene:init(world)
     local mod = slabFactory()
     self.Slab = mod.Slab
     self.SlabDebug = mod.SlabDebug
@@ -140,17 +153,29 @@ function EditorScene:init(attachable)
         KeyboardAccessors = self.slabkeyboard,
     })
 
-    self.attached = attachable
-    self.world = (attachable and Container.getWorld(attachable)) or ecs.World:new()
-    self.tracker = self.world:addSystem(PoolSystem:new())
+    self.tool = tools.Look:new()
+
+    world = world or ecs.World:new()
+    if world then
+        self:hookWorld(world)
+    end
 
     self.focused = false
     self.pauseParent = true
     self.mouseBlocked = false
 
     self.entitiesWindow = entities.EntitiesWindow:new(self.Slab, self.tracker)
-    self.fileWindow = files.FileWindow:new(self.Slab)
+    self.fileWindow = files.FileWindow:new(self.Slab, self.tracker)
     self.systemsWindow = systems.SystemsWindow:new(self.Slab, self.tracker)
+end
+
+function EditorScene:hookWorld(world)
+    self.world = world
+    self.tracker = world:addSystem(EditorSystem:new())
+    local worldRenderer = world:getRenderer()
+    world:setRenderer(EditorRenderer:new(worldRenderer))
+    self.pipeline = world:getPipeline()
+    self.tool:setCamera(self.pipeline.camera)
 end
 
 function EditorScene:message(msg, scenestack, ...)
@@ -199,6 +224,14 @@ function EditorScene:update(scenestack, dt)
 
             if Slab.MenuItem("Save") then
                 self.fileWindow:message("saveFile")
+            end
+
+            Slab.EndMenu()
+        end
+
+        if Slab.BeginMenu("Tool") then
+            if Slab.MenuItemChecked("Look", prototype.is(self.tool, tools.Look)) then
+                self.tool = tools.Look:new(self.world:getPipeline().camera)
             end
 
             Slab.EndMenu()
@@ -254,35 +287,44 @@ function EditorScene:update(scenestack, dt)
 end
 
 function EditorScene:draw(scenestack)
-    local parent = self.parent
-    if parent then
-        parent:message("draw", scenestack)
-    end
+    self.world:draw()
     self.Slab.Draw()
 end
 
 function EditorScene:isMouseUnobstructed()
-    return self.Slab.IsVoidHovered() or self.Slab.IsVoidClicked()
+    return self.Slab.IsVoidHovered()
 end
 
 function EditorScene:mousemoved(scenestack, ...)
     local parent = self.parent
-    if self:isMouseUnobstructed() and parent and not self.pauseParent then
-        parent:message("mousemoved", scenestack, ...)
+    if self:isMouseUnobstructed() then
+        if parent and not self.pauseParent then
+            parent:message("mousemoved", scenestack, ...)
+        else
+            self.tool:message("mousemoved", ...)
+        end
     end
 end
 
 function EditorScene:mousepressed(scenestack, ...)
     local parent = self.parent
-    if self:isMouseUnobstructed() and parent and not self.pauseParent then
-        parent:message("mousepressed", scenestack, ...)
+    if self:isMouseUnobstructed() then
+        if parent and not self.pauseParent then
+            parent:message("mousepressed", scenestack, ...)
+        else
+            self.tool:message("mousepressed", ...)
+        end
     end
 end
 
 function EditorScene:mousereleased(scenestack, ...)
     local parent = self.parent
-    if self:isMouseUnobstructed() and parent and not self.pauseParent then
-        parent:message("mousereleased", scenestack, ...)
+    if self:isMouseUnobstructed() then
+        if parent and not self.pauseParent then
+            parent:message("mousereleased", scenestack, ...)
+        else
+            self.tool:message("mousereleased", ...)
+        end
     end
 end
 
@@ -290,8 +332,12 @@ function EditorScene:textinput(scenestack, ...)
     self.slabhooks.textinput(...)
 end
 
-function EditorScene:wheelmoved(scenestack, ...)
-    self.slabhooks.wheelmoved(...)
+function EditorScene:wheelmoved(scenestack, x, y)
+    if self:isMouseUnobstructed() then
+        self.tool:message("wheelmoved", x, y)
+    else
+        self.slabhooks.wheelmoved(x, y)
+    end
 end
 
 function EditorScene:quit(scenestack, ...)
