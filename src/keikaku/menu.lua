@@ -1,10 +1,17 @@
+local lume = dtrequire("lib.lume")
+
 local menu = {}
 
 function menu.worldMenu(editor, dt)
     local Slab = editor.Slab
     if Slab.BeginMenu("World") then
-        if Slab.MenuItemChecked("Freeze", true) then
-            
+        local running = editor.agent:getState() == "running"
+        if Slab.MenuItemChecked("Run", running) then
+            editor.agent:message("runWorld", editor)
+        end
+
+        if Slab.MenuItemChecked("Pause", not running) then
+            editor.agent:message("pauseWorld", editor)
         end
 
         Slab.EndMenu()

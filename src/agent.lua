@@ -1,4 +1,5 @@
 local prototype = dtrequire("prototype")
+local resource = dtrequire("resource")
 local _, Component = dtrequire("entity").common()
 
 local agent = {}
@@ -23,27 +24,44 @@ do
     end
 end
 
-local statesToName, nameToStates = {}, {}
-
-function agent.registerStateTable(name, states)
-    statesToName[states], nameToStates[name] = name, states
-end
-
-function agent.getStateTable(name)
-    return nameToStates[name]
-end
-
 local Agent = prototype.new()
 agent.Agent = Agent
 do
+    local function loadStatesFromScript(self, script)
+        local env = {
+            Component = Component,
+            Agent = Agent,
+            State = State,
+
+            mouse = love.mouse,
+            keyboard = love.keyboard,
+
+            math = math,
+            print = print,
+
+            fmod = fmod,
+        }
+
+        local res
+        if type(script) == "string" then
+            res = assert(resource.get(script), "no such script " .. script)
+        elseif type(script) == "function" then
+            res = script
+        else
+            error("script must be resource name or function")
+        end
+        
+        local ok, result = xpcall(setfenv(res, env), debug.traceback)
+        if not ok then
+            error(result)
+        end
+
+        return result
+    end
+
     function Agent:init(states, stack, elapsed)
-        if type(states) == "string" then
-            local statetable = nameToStates[states]
-            if statetable then
-                self.states = statetable
-            else
-                error("no such registered state table with name " .. states)
-            end
+        if type(states) == "string" or type(states) == "function" then
+            self.states = loadStatesFromScript(self, states)
         elseif type(states) == "table" then
             self.states = states
         else

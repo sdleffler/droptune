@@ -23,10 +23,6 @@ local function makeFont(path)
   end
 end
 
-local function loadFile(path)
-  return lf.load(path)()
-end
-
 cargo.loaders = {
   lua = lf and lf.load,
   png = lg and lg.newImage,
@@ -84,7 +80,7 @@ function cargo.init(config)
 
   local function __call(t, recurse)
     for i, f in ipairs(love.filesystem.getDirectoryItems(t._path)) do
-      local key = f:gsub('%..-$', '')
+      local key = f:gsub('%.[^.]-$', '')
       halp(t, key)
 
       if recurse and love.filesystem.getInfo(t._path .. '/' .. f, 'directory') then

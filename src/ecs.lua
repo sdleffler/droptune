@@ -34,6 +34,10 @@ do
         componentToName[component] = name
     end
 
+    function Component.get(name)
+        return assert(nameToComponent[name], "no such component " .. name .. "!")
+    end
+
     -- TODO: warn about Component subtyping behavior w.r.t.
     -- one-per-type behavior w/ an Entity (subtype considered
     -- distinct from supertype)
@@ -173,7 +177,9 @@ do
     end
 
     function World:draw(pipeline)
-        self.renderer:draw(pipeline or self.pipeline)
+        if self.renderer then
+            self.renderer:draw(pipeline or self.pipeline)
+        end
     end
 
     function World:serializeEntities(write)
@@ -278,7 +284,7 @@ do
 
     local function reconstruct(world, e, components)
         for name, serialized in pairs(components) do
-            local component = nameToComponent[name]
+            local component = assert(nameToComponent[name], name)
             local serde = Serde[component]
             if serde then
                 local obj = serde.deserialize(world)
@@ -330,11 +336,29 @@ do
             return self:instantiate(res, env, ...)
         end
 
+        local function yieldor(...)
+            local args = {...}
+            return function(...)
+                if coroutine.running() then
+                    return coroutine.yield(unpack(args))
+                else
+                    return ...
+                end
+            end
+        end
+
         env = {
             entity = entity,
             entityid = entityid,
             instance = instance,
+            yieldor = yieldor,
             coroutine = coroutine,
+
+            mouse = love.mouse,
+            keyboard = love.keyboard,
+
+            Entity = Entity,
+            Component = Component,
         }
 
         return env
@@ -362,6 +386,25 @@ do
         end
 
         return result
+    end
+
+    function World:coinstantiate(serialized, env)
+        local f
+        if type(serialized) == "string" then
+            local ok, loaded = loadstring(serialized)
+            if not ok then
+                error(loaded)
+            end
+
+            f = ok
+        elseif type(serialized) == "function" then
+            f = serialized
+        else
+            error("expected string or function")
+        end
+
+        local env = lume.merge(self:makeLoadEnv(), env or {})
+        return coroutine.create(setfenv(f, env))
     end
 
     function World:deserializeEntities(serialized, ...)

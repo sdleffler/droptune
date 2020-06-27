@@ -8,7 +8,7 @@ do
     AgentSystem.filter = AgentComponent.filter
 
     function AgentSystem:process(e, dt)
-        e[AgentComponent]:update(dt)
+        e[AgentComponent]:update(dt, e)
     end
 end
 

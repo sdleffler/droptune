@@ -2,7 +2,7 @@ local Agent, State = dtrequire("agent").common()
 local ecs = dtrequire("ecs")
 local prototype = dtrequire("prototype")
 
-local AgentComponent = ecs.Component:subtype({}, "droptune.components.AgentComponent")
+local AgentComponent = ecs.Component:subtype({}, "droptune.components.Agent")
 do
     AgentComponent.message = Agent.message
     AgentComponent.pushState = Agent.pushState
@@ -12,13 +12,12 @@ do
     AgentComponent.getState = Agent.getState
 
     -- The nil init path is used for deserialization.
-    function AgentComponent:init(states, stack, elapsed)
-        assert(type(states) == nil or type(states) == "string",
-            "expected either nil or string name of registered state table!")
+    function AgentComponent:init(script, stack, elapsed)
+        assert(type(script) == nil or type(script) == "string", "expected resource name!")
 
-        if states then
-            Agent.init(self, states, stack, elapsed)
-            self.stateTableName = states
+        if script then
+            Agent.init(self, script, stack, elapsed)
+            self.script = script
         end
     end
 end
@@ -30,14 +29,15 @@ ecs.Visitor[AgentComponentBuilder] = {
         self[k] = v
     end,
 
+    -- We can be missing stack and elapsed, but *must* have script.
     finish = function(self)
-        return AgentComponent:new(self.stateTableName, self.stack, self.elapsed)
+        return AgentComponent:new(self.script, self.stack, self.elapsed)
     end,
 }
 
 ecs.Serde[AgentComponent] = {
     serialize = function(self, v)
-        v("stateTableName", self.stateTableName)
+        v("script", self.script)
         v("stack", self.stack)
         v("elapsed", self.elapsed)
     end,

@@ -115,6 +115,31 @@ do
             self:pushState("contextmenu")
         end
     end
+
+    function FreeState:runWorld(editor)
+        self:setState("running")
+    end
+end
+
+local RunningState = State:subtype()
+do
+    function RunningState:updateSlabInputs(dt, editor)
+        editor.slabinputs.getMousePosition = {unpack(editor.mousestate.mousePos)}
+        
+        for i = 1, 3 do
+            editor.slabinputs.isMouseDown[i] = i ~= 2 and editor.mousestate.mouseDown[i]
+        end
+    end
+
+    RunningState.updateInteractable = FreeState.updateInteractable
+
+    function RunningState:pauseWorld(editor)
+        self:setState("init")
+    end
+
+    function RunningState:updateWorld(dt, editor)
+        editor.world:update(dt)
+    end
 end
 
 local SelectingState = State:subtype()
@@ -262,7 +287,8 @@ local main = {}
 function main.init(editor)
     editor.main = main
     editor.agent = Agent:new({
-        init = FreeState:new(), 
+        init = FreeState:new(),
+        running = RunningState:new(),
         selecting = SelectingState:new(),
         interacting = InteractingState:new(),
         contextmenu = ContextMenuState:new(),
@@ -338,6 +364,8 @@ function main.update(scenestack, dt, editor)
     local menu = dtrequire("keikaku.menu")
     local interactable = dtrequire("keikaku.interactable")
 
+    editor.world:refresh()
+
     -- Update the stored mouse state.
     local mousestate = editor.mousestate
     for i = 1, 3 do
@@ -371,6 +399,8 @@ function main.update(scenestack, dt, editor)
     -- Reset the mousewheel state so that it isn't continuously moved
     -- when we have no events coming in.
     mousestate.mouseWheel = {0, 0}
+
+    editor.agent:message("updateWorld", dt, editor)
 end
 
 function main.drawSlab(editor)
