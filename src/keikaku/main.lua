@@ -57,9 +57,9 @@ do
     end
 end
 
-local free = {}
+local FreeState = State:subtype()
 do
-    function free:updateSlabInputs(dt, editor)
+    function FreeState:updateSlabInputs(dt, editor)
         editor.slabinputs.getMousePosition = {unpack(editor.mousestate.mousePos)}
         
         for i = 1, 3 do
@@ -67,12 +67,12 @@ do
         end
     end
 
-    function free:updateInteractable(dt, editor)
+    function FreeState:updateInteractable(dt, editor)
         local interactable = dtrequire("keikaku.interactable")
         interactable.update(dt, editor)
     end
 
-    function free:update(dt, editor)
+    function FreeState:update(dt, editor)
         local hovered = editor.hovered
         local agent
         if #hovered == 1 then
@@ -100,18 +100,65 @@ do
                 self:pushState("interacting")
             end
         end
+
+        if love.keyboard.isDown("lshift") then
+            self:pushState("selecting")
+        end
     end
 
-    function free:setContextMenuOpen(flag)
+    function FreeState:setContextMenuOpen(editor, flag)
+        if flag then
+            if #editor.selected == 0 and editor.active and editor.active.entity then
+                editor.selected[editor.active.entity] = true
+            end
+
+            self:pushState("contextmenu")
+        end
+    end
+end
+
+local SelectingState = State:subtype()
+do
+    SelectingState.updateInteractable = FreeState.updateInteractable
+
+    function SelectingState:update(dt, editor)
+        local hovered = editor.hovered
+
+        if #hovered == 0 then
+            lume.clear(editor.selected)
+        else
+            if editor.mousestate:isMousePressed(1) then
+                for _, shape in ipairs(hovered) do
+                    local e = shape.agent.entity
+                    if e then
+                        editor.selected[e] = true
+                    end
+                end
+            elseif editor.mousestate:isMousePressed(2) then
+                for _, shape in ipairs(hovered) do
+                    local e = shape.agent.entity
+                    if e then
+                        editor.selected[e] = nil
+                    end
+                end
+            end
+        end
+
+        if not love.keyboard.isDown("lshift") then
+            self:popState()
+        end
+    end
+
+    function SelectingState:setContextMenuOpen(editor, flag)
         if flag then
             self:pushState("contextmenu")
         end
     end
 end
 
-local interacting = {}
+local InteractingState = FreeState:subtype()
 do
-    function interacting:updateSlabInputs(dt, editor)
+    function InteractingState:updateSlabInputs(dt, editor)
         editor.slabinputs.getMousePosition = {unpack(editor.mousestate.mousePos)}
 
         local override = editor.active ~= nil and editor.active:overrideGUI()
@@ -120,9 +167,7 @@ do
         end
     end
 
-    interacting.updateInteractable = free.updateInteractable
-
-    function interacting:update(dt, editor)
+    function InteractingState:update(dt, editor)
         local agent = editor.active
         local x, y = editor.mousestate:getMousePosition()
         agent:message("mousemoved", x, y, editor.mousestate:getMouseDelta())
@@ -142,53 +187,74 @@ do
             self:popState()
         end
     end
-
-    interacting.setContextMenuOpen = free.setContextMenuOpen
 end
 
-local contextmenu = {}
+local ContextMenuState = FreeState:subtype()
 do
-    contextmenu.updateSlabInputs = free.updateSlabInputs
-
-    function contextmenu:removeEntity(editor, entity)
-        self:pushState("confirmremoveentity", entity)
+    function ContextMenuState:removeEntity(editor, entity)
+        local msg = string.format("Really remove entity %s?", entity)
+        self:pushState("confirm", "Remove Entity", msg, {
+            ["Remove"] = function()
+                editor.world:removeEntity(entity)
+            end,
+            ["Cancel"] = function() end,
+        })
     end
 
-    function contextmenu:setContextMenuOpen(flag)
+    function ContextMenuState:removeSelectedEntities(editor)
+        local msg = string.format("Really remove %d selected entities?", lume.count(editor.selected))
+        self:pushState("confirm", "Remove Selected Entities", msg, {
+            ["Remove"] = function()
+                for entity in pairs(editor.selected) do
+                    editor.selected[entity] = nil
+                    editor.world:removeEntity(entity)
+                end
+            end,
+            ["Cancel"] = function() end,
+        })
+    end
+
+    function ContextMenuState:setContextMenuOpen(editor, flag)
         if not flag then
             self:popState()
         end
     end
+
+    function ContextMenuState:update(dt, editor) end
 end
 
-local confirmremoveentity = {}
+local ConfirmState = FreeState:subtype()
 do
-    confirmremoveentity.updateSlabInputs = free.updateSlabInputs
-
-    function confirmremoveentity:push(entity)
-        self.target = entity
+    function ConfirmState:push(title, message, buttons)
+        self.confirm = {
+            title = title,
+            message = message,
+            buttons = buttons,
+        }
     end
 
-    function confirmremoveentity:update(dt, editor)
+    function ConfirmState:updateInteractable(dt, editor) end
+
+    function ConfirmState:update(dt, editor)
         local Slab = editor.Slab
         local result = Slab.MessageBox(
-            "Remove Entity",
-            "Really remove entity " .. tostring(self.target) .. "?",
-            {Buttons = {"Remove", "Cancel"}}
+            self.confirm.title,
+            self.confirm.message,
+            {Buttons = lume.keys(self.confirm.buttons)}
         )
 
         if result ~= "" then
-            if result == "Remove" then
-                editor.world:removeEntity(self.target)
-            end
+            self.confirm.buttons[result]()
 
             self:popState()
         end
     end
 
-    function confirmremoveentity:pop()
-        self.target = nil
+    function ConfirmState:pop()
+        self.confirm = nil
     end
+
+    function ConfirmState:setContextMenuOpen(flag) end
 end
 
 local main = {}
@@ -196,10 +262,11 @@ local main = {}
 function main.init(editor)
     editor.main = main
     editor.agent = Agent:new({
-        init = State:new(free),
-        interacting = State:new(interacting),
-        contextmenu = State:new(contextmenu),
-        confirmremoveentity = State:new(confirmremoveentity),
+        init = FreeState:new(), 
+        selecting = SelectingState:new(),
+        interacting = InteractingState:new(),
+        contextmenu = ContextMenuState:new(),
+        confirm = ConfirmState:new(),
     })
 
     editor.tools = {
@@ -208,6 +275,8 @@ function main.init(editor)
     }
 
     editor.tool = editor.tools["Look"]
+
+    editor.selected = {}
 
     editor.idpool = IdPool:new()
     editor.tracker = TrackerSystem:new(editor.idpool)

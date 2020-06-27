@@ -147,7 +147,6 @@ function interactable.draw(editor)
     editor.world:refresh()
     editor.interaction:draw(editor.world:getPipeline())
 
-    love.graphics.setColor(0, 0, 1, 0.8)
     love.graphics.setLineWidth(1)
 
     local hc = editor.hc
@@ -160,6 +159,12 @@ function interactable.draw(editor)
             kind = "fill"
         else
             kind = "line"
+        end
+
+        if editor.selected[shape.agent.entity] then
+            love.graphics.setColor(0, 0.7, 0, 0.8)
+        else
+            love.graphics.setColor(0, 0, 1, 0.8)
         end
 
         shape:draw(kind)

@@ -25,7 +25,7 @@ function menu.updateContextMenu(editor, dt)
 
     local Slab = editor.Slab
     local begin = Slab.BeginContextMenuWindow()
-    editor.agent:message("setContextMenuOpen", begin)
+    editor.agent:message("setContextMenuOpen", editor, begin)
     if begin then
         if Slab.BeginMenu("Tool") then
             for name, tool in pairs(editor.tools) do
@@ -43,10 +43,13 @@ function menu.updateContextMenu(editor, dt)
             Slab.EndMenu()
         end
 
-        local entity = agent.entity
-        if entity and Slab.BeginMenu("Entity") then
-            if Slab.MenuItem("Remove...") then
-                editor.agent:message("removeEntity", editor, entity)
+        if Slab.BeginMenu("Selection") then
+            if Slab.MenuItem("Deselect all") then
+                lume.clear(editor.selection)
+            end
+
+            if Slab.MenuItem("Remove all...") then
+                editor.agent:message("removeSelectedEntities", editor)
             end
 
             Slab.EndMenu()
