@@ -1,4 +1,5 @@
 local HC = dtrequire("lib.HC")
+local lume = dtrequire("lib.lume")
 
 local Agent, _ = dtrequire("agent").common()
 local ecs = dtrequire("ecs")
@@ -37,6 +38,10 @@ if not _keikaku_interactable_G then
 
         function Tool:overrideContextMenu()
             return false
+        end
+
+        function Tool:getName()
+            return self:getShortPrototypeName()
         end
     end
 
@@ -113,7 +118,7 @@ function interactable.update(dt, editor)
 
     local hovered = editor.hovered
     if editor.Slab.IsVoidHovered() then
-        if not editor.tool:overrideNonToolInteractions() then
+        if not (editor.tool and editor.tool:overrideNonToolInteractions()) then
             local shapes = editor.hc:shapesAt(editor.mousestate:getMousePosition())
 
             for i = #hovered, 1, -1 do
@@ -134,9 +139,7 @@ function interactable.update(dt, editor)
             table.insert(hovered, {agent = editor.tool})
         end
     else
-        for i = #hovered, 1, -1 do
-            table.remove(hovered, i)
-        end
+        lume.clear(hovered)
     end
 end
 

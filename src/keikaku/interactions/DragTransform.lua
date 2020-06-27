@@ -38,6 +38,8 @@ function DragInteraction:onAdd(e)
                     local camera = self.editor.world:getPipeline().camera
                     body:setPosition(camera:toWorld(fx - offsetX, fy - offsetY))
                 end,
+
+                entity = e,
             })
         end
     elseif e[TransformComponent] then
@@ -60,8 +62,12 @@ function DragInteraction:onAdd(e)
                     local camera = self.editor.world:getPipeline().camera
                     c.x, c.y = camera:toWorld(fx - offsetX, fy - offsetY)
                 end,
+
+                entity = e,
             })
         end
+    else
+        error("impossible")
     end
 
     local center = self.editor.hc:circle(x, y, 4)
@@ -73,7 +79,10 @@ function DragInteraction:onAdd(e)
 end
 
 function DragInteraction:onRemove(e)
+    local table = self.shapes[e]
     self.shapes[e] = nil
+
+    self.editor.hc:remove(table.center)
 end
 
 function DragInteraction:update(dt)
@@ -92,7 +101,7 @@ function DragInteraction:update(dt)
 end
 
 function DragInteraction:draw(pipeline)
-    love.graphics.setColor(1, 0, 0)
+    love.graphics.setColor(1, 0, 0, 0.8)
     love.graphics.setLineWidth(1)
 
     for _, e in ipairs(self.entities) do

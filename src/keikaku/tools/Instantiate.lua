@@ -9,15 +9,50 @@ do
     do
         function init.mousepressed(agent, x, y, button)
             if button == 1 and agent.resource then
+                local wx, wy = agent.editor:getCamera():toWorld(x, y)
                 local env = lume.merge(
-                    {editor = {x = x, y = y}},
+                    {editor = {x = wx, y = wy}},
                     agent.editor.world:makeLoadEnv()
                 )
 
                 agent.editor.world:instantiate(agent.resource, env)
-            elseif button == 2 then
+            end
+        end
+
+        function init.makeContextMenu(agent)
+            local Slab = agent.editor.Slab
+
+            if agent.resource then
+                Slab.MenuItem("Selected: " .. agent.script)
+            else
+                Slab.MenuItem("No script selected")
+            end
+
+            if Slab.MenuItem("Open script...") then
                 agent:setState("choosing")
             end
+
+            Slab.Separator()
+
+            for i, recent in ipairs(agent.recents) do
+                if Slab.MenuItem(recent) then
+                    local res = resource.get(recent)
+                    if res then
+                        -- We're going to break here, so it's okay to move elements
+                        -- around.
+                        table.remove(agent.recents, i)
+                        table.insert(agent.recents, 1, recent)
+                        agent.script = recent
+                        agent.resource = res
+
+                        break
+                    end
+                end
+            end
+        end
+
+        function init.overrideContextMenu(agent)
+            return false
         end
     end
 
@@ -41,13 +76,8 @@ do
                     if res then
                         agent.script = script
                         agent.resource = res
+                        table.insert(agent.recents, 1, script)
                         agent:setState("init")
-
-                        Slab.EndWindow()
-                        Slab.BeginWindow("InstantiateChooseScript", {
-                            Title = "Choose script",
-                            IsOpen = false,
-                        })
                     end
                 end
     
@@ -55,6 +85,12 @@ do
             end
             
             Slab.EndWindow()
+        end
+
+        function choosing.makeContextMenu(agent)
+            local Slab = agent.editor.Slab
+
+            Slab.MenuItem("Choosing...")
         end
     end
 
@@ -66,10 +102,15 @@ do
     function Instantiate:init(editor)
         Agent.init(self, states)
         self.editor = editor
+        self.recents = {}
     end
 
     function Instantiate:overrideGUI()
         return false
+    end
+
+    function Instantiate:overrideContextMenu()
+        return select(2, self:message("overrideContextMenu"))
     end
 end
 

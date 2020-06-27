@@ -334,6 +334,7 @@ do
             entity = entity,
             entityid = entityid,
             instance = instance,
+            coroutine = coroutine,
         }
 
         return env
@@ -354,7 +355,7 @@ do
             error("expected string or function")
         end
 
-        local env = env or self:makeLoadEnv()    
+        local env = lume.merge(self:makeLoadEnv(), env or {})
         local ok, result = xpcall(setfenv(f, env), debug.traceback, ...)
         if not ok then
             error(result)

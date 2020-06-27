@@ -48,18 +48,19 @@ do
         end
     end
 
-    function DragAgent:init(handlers)
+    function DragAgent:init(opts)
         Tool.init(self, {
             init = State:new(init),
             dragging = State:new(dragging),
         })
 
-        self.mousemoved = handlers.mousemoved
-        self.mousepressed = handlers.mousepressed
-        self.mousereleased = handlers.mousereleased
-        self.start = handlers.start
-        self.finish = handlers.finish
-        self.button = handlers.button or 1
+        self.mousemoved = opts.mousemoved
+        self.mousepressed = opts.mousepressed
+        self.mousereleased = opts.mousereleased
+        self.start = opts.start
+        self.finish = opts.finish
+        self.button = opts.button or 1
+        self.entity = opts.entity
     end
 end
 

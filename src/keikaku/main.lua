@@ -67,11 +67,17 @@ do
         end
     end
 
+    function free:updateInteractable(dt, editor)
+        local interactable = dtrequire("keikaku.interactable")
+        interactable.update(dt, editor)
+    end
+
     function free:update(dt, editor)
         local hovered = editor.hovered
         local agent
         if #hovered == 1 then
             agent = hovered[1].agent
+            editor.active = agent
         end
 
         if agent then
@@ -91,8 +97,14 @@ do
             agent:update(dt, editor)
 
             if agent:getState() ~= "init" then
-                self:pushState("interacting", editor, agent)
+                self:pushState("interacting")
             end
+        end
+    end
+
+    function free:setContextMenuOpen(flag)
+        if flag then
+            self:pushState("contextmenu")
         end
     end
 end
@@ -108,13 +120,7 @@ do
         end
     end
 
-    function interacting:push(editor, agent)
-        editor.active = agent
-    end
-
-    function interacting:pop(editor)
-        editor.active = nil
-    end
+    interacting.updateInteractable = free.updateInteractable
 
     function interacting:update(dt, editor)
         local agent = editor.active
@@ -133,7 +139,20 @@ do
         agent:update(dt, editor)
 
         if agent:getState() == "init" then
-            self:popState(editor)
+            self:popState()
+        end
+    end
+
+    interacting.setContextMenuOpen = free.setContextMenuOpen
+end
+
+local contextmenu = {}
+do
+    contextmenu.updateSlabInputs = free.updateSlabInputs
+
+    function contextmenu:setContextMenuOpen(flag)
+        if not flag then
+            self:popState()
         end
     end
 end
@@ -145,9 +164,16 @@ function main.init(editor)
     editor.agent = Agent:new({
         init = State:new(free),
         interacting = State:new(interacting),
+        contextmenu = State:new(contextmenu),
     })
-    --editor.tool = dtrequire("keikaku.tools.Look"):new(editor)
-    editor.tool = dtrequire("keikaku.tools.Instantiate"):new(editor)
+
+    editor.tools = {
+        ["Look"] = dtrequire("keikaku.tools.Look"):new(editor),
+        ["Instantiate"] = dtrequire("keikaku.tools.Instantiate"):new(editor),
+    }
+
+    editor.tool = editor.tools["Look"]
+
     editor.idpool = IdPool:new()
     editor.tracker = TrackerSystem:new(editor.idpool)
     editor.world:addSystem(editor.tracker)
@@ -205,7 +231,7 @@ function main.update(scenestack, dt, editor)
         main.init(editor)
     end
 
-    local menubar = dtrequire("keikaku.menubar")
+    local menu = dtrequire("keikaku.menu")
     local interactable = dtrequire("keikaku.interactable")
 
     -- Update the stored mouse state.
@@ -224,15 +250,19 @@ function main.update(scenestack, dt, editor)
     -- Update Slab, including inputs. Note that if we are in an
     -- 'interacting' state, Slab will see the mouse as never down.
     main.updateSlab(editor, dt)
-    menubar.update(editor, dt)
+    menu.updateMainMenuBar(editor, dt)
 
     -- Update interactable regions and check which are hovered
-    interactable.update(dt, editor)
+    editor.agent:message("updateInteractable", dt, editor)
 
     -- Update the editor state machine, including checking for
     -- interactions and transitioning between "free"/non-interacting,
     -- interacting states
     editor.agent:message("update", dt, editor)
+
+    if editor.active and not editor.active:overrideContextMenu() then
+        menu.updateContextMenu(editor, dt)
+    end
 
     -- Reset the mousewheel state so that it isn't continuously moved
     -- when we have no events coming in.
