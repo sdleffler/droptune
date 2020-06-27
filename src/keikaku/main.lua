@@ -150,10 +150,44 @@ local contextmenu = {}
 do
     contextmenu.updateSlabInputs = free.updateSlabInputs
 
+    function contextmenu:removeEntity(editor, entity)
+        self:pushState("confirmremoveentity", entity)
+    end
+
     function contextmenu:setContextMenuOpen(flag)
         if not flag then
             self:popState()
         end
+    end
+end
+
+local confirmremoveentity = {}
+do
+    confirmremoveentity.updateSlabInputs = free.updateSlabInputs
+
+    function confirmremoveentity:push(entity)
+        self.target = entity
+    end
+
+    function confirmremoveentity:update(dt, editor)
+        local Slab = editor.Slab
+        local result = Slab.MessageBox(
+            "Remove Entity",
+            "Really remove entity " .. tostring(self.target) .. "?",
+            {Buttons = {"Remove", "Cancel"}}
+        )
+
+        if result ~= "" then
+            if result == "Remove" then
+                editor.world:removeEntity(self.target)
+            end
+
+            self:popState()
+        end
+    end
+
+    function confirmremoveentity:pop()
+        self.target = nil
     end
 end
 
@@ -165,6 +199,7 @@ function main.init(editor)
         init = State:new(free),
         interacting = State:new(interacting),
         contextmenu = State:new(contextmenu),
+        confirmremoveentity = State:new(confirmremoveentity),
     })
 
     editor.tools = {

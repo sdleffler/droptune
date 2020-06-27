@@ -46,7 +46,7 @@ function menu.updateContextMenu(editor, dt)
         local entity = agent.entity
         if entity and Slab.BeginMenu("Entity") then
             if Slab.MenuItem("Remove...") then
-                editor.world:removeEntity(entity)
+                editor.agent:message("removeEntity", editor, entity)
             end
 
             Slab.EndMenu()
