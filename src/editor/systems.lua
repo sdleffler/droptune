@@ -3,10 +3,10 @@ local fuzzel = dtrequire("lib.fuzzel")
 local Entity, Component = dtrequire("entity").common()
 local Agent, State = dtrequire("agent").common()
 local components = dtrequire("components")
-local editable = dtrequire("editable")
+local hooks = dtrequire("editor.hooks")
 local prototype = dtrequire("prototype")
 
-local Editable = editable.Editable
+local Editable = hooks.Editable
 local NameComponent = components.NameComponent
 
 local SystemsFilterWindow = Agent:subtype()
@@ -156,51 +156,53 @@ do
         end
     end
 
-    local function buildSystemTree(agent, systems)
+    local function buildSystemTree(root, agent, systems)
         local Slab = agent.Slab
 
         for i, system in ipairs(systems) do
-            local info = agent.tracker[system]
-            local label
-            if prototype.isPrototyped(system) then
-                label = system:getShortPrototypeName()
-            else
-                label = tostring(system)
-            end
-
-            local doTree = Slab.BeginTree(info.id, {
-                Label = label,
-                OpenWithHighlight = false,
-                NoSavedSettings = true,
-                IsSelected = system == agent.selected,
-            })
-
-            if Slab.BeginContextMenuItem() then
-                contextMenu(agent, system)
-                Slab.EndContextMenu()
-            end
-
-            if Slab.IsControlClicked() then
-                agent.selected = system
-
-                if Slab.IsMouseDoubleClicked() then
-                    editSystem(agent, system)
-                end
-            end
-
-            if doTree then
-                Slab.Text("id: " .. info.index)
-
+            if system.parent == root then
+                local info = agent.tracker[system]
+                local label
                 if prototype.isPrototyped(system) then
-                    Slab.Text("prototype: " .. system:getPrototypeName())
+                    label = system:getShortPrototypeName()
+                else
+                    label = tostring(system)
                 end
 
-                if system.children and #system.children > 0 then
-                    Slab.Text("children:")
-                    buildSystemTree(agent, system.children)
+                local doTree = Slab.BeginTree(info.id, {
+                    Label = label,
+                    OpenWithHighlight = false,
+                    NoSavedSettings = true,
+                    IsSelected = system == agent.selected,
+                })
+
+                if Slab.BeginContextMenuItem() then
+                    contextMenu(agent, system)
+                    Slab.EndContextMenu()
                 end
 
-                Slab.EndTree()
+                if Slab.IsControlClicked() then
+                    agent.selected = system
+
+                    if Slab.IsMouseDoubleClicked() then
+                        editSystem(agent, system)
+                    end
+                end
+
+                if doTree then
+                    Slab.Text("id: " .. info.index)
+
+                    if prototype.isPrototyped(system) then
+                        Slab.Text("prototype: " .. system:getPrototypeName())
+                    end
+
+                    if system.children and #system.children > 0 then
+                        Slab.Text("children:")
+                        buildSystemTree(system, agent, system.children)
+                    end
+
+                    Slab.EndTree()
+                end
             end
         end
     end
@@ -227,7 +229,7 @@ do
         end
         
         if doTree then
-            buildSystemTree(agent, agent.tracker.systems)
+            buildSystemTree(nil, agent, agent.tracker.systems)
             Slab.EndTree()
         end
     end
@@ -294,7 +296,7 @@ do
         if newtext ~= agent.searchtext and #newtext > 0 then
             agent.searchtext = newtext
             modified = true
-            agent.searchresults = fuzzel.FuzzyAutocompleteRatio(newtext, editable.registeredSystemNames)
+            agent.searchresults = fuzzel.FuzzyAutocompleteRatio(newtext, hooks.registeredSystemNames)
         end
 
         Slab.BeginListBox("SearchResults", {Clear = modified})
@@ -328,7 +330,7 @@ do
         if isEntered then
             enteredName = enteredName or agent.searchresults[1]
 
-            local system = editable.registeredSystems[enteredName]
+            local system = hooks.registeredSystems[enteredName]
             local fresh = Editable.newDefault(system)
             if fresh then
                 agent.world:addSystem(fresh)

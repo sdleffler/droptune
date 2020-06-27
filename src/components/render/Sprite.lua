@@ -3,7 +3,7 @@ local resource = dtrequire("resource")
 local _, Component = ecs.common()
 
 local SpriteComponent = Component:subtype({},
-    "droptune.components.render.SpriteComponent")
+    "droptune.components.render.Sprite")
 do
     function SpriteComponent:init(res)
         if res then

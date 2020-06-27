@@ -1,12 +1,12 @@
 local lume = dtrequire("lib.lume")
 
 local ecs = dtrequire("ecs")
-local editable = dtrequire("editable")
+local hooks = dtrequire("editor.hooks")
 local prototype = dtrequire("prototype")
 local _, Component = dtrequire("entity").common()
 
 local PhysicsSystem = dtrequire("systems.Physics")
-local PhysicsComponent = Component:subtype({}, "droptune.components.PhysicsComponent")
+local PhysicsComponent = Component:subtype({}, "droptune.components.Physics")
 
 -- Floating point epsilon for is-default-value comparisons during serialization
 local EPSILON = 0.00000001
@@ -280,7 +280,7 @@ ecs.Visitor[PhysicsComponent] = {
     finish = function(self) return self end,
 }
 
-editable.registerComponent(PhysicsComponent, {
+hooks.registerComponent(PhysicsComponent, {
     updateUI = function(self, Slab)
         if self.body then
             Slab.BeginLayout("PhysicsComponentLayout", {
@@ -362,7 +362,7 @@ editable.registerComponent(PhysicsComponent, {
         local x, y = camera:toScreen(self.body:getPosition())
         if not shapes[1] then
             shape = hc:circle(x, y, 4)
-            shape.interaction = editable.interactions.DragInteraction:new(
+            shape.interaction = hooks.interactions.DragInteraction:new(
                 function(interaction, kind, x, y)
                     if kind == "mouse" then
                         self.body:setPosition(interaction.camera:toWorld(x, y))
@@ -379,7 +379,7 @@ editable.registerComponent(PhysicsComponent, {
         local x, y = tx:transformPoint(16, 0)
         if not shapes[2] then
             shape = hc:circle(x, y, 4)
-            shape.interaction = editable.interactions.DragInteraction:new(
+            shape.interaction = hooks.interactions.DragInteraction:new(
                 function(interaction, kind, x, y)
                     if kind == "mouse" then
                         local pivotx, pivoty = self.body:getPosition()

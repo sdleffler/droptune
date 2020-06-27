@@ -1,6 +1,6 @@
 local ecs = dtrequire("ecs")
 
-local Renderer = ecs.System:subtype({}, "droptune.systems.render.Renderer")
+local Renderer = ecs.System:subtype("droptune.systems.render.Renderer")
 do
     function Renderer:init(...)
         ecs.System.init(self, ...)

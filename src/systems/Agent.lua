@@ -1,6 +1,6 @@
 local AgentComponent = dtrequire("components.Agent")
 local ecs = dtrequire("ecs")
-local editable = dtrequire("editable")
+local hooks = dtrequire("editor.hooks")
 local prototype = dtrequire("prototype")
 
 local AgentSystem = ecs.ProcessingSystem:subtype()
@@ -12,7 +12,7 @@ do
     end
 end
 
-editable.registerSystem(AgentSystem, {
+hooks.registerSystem(AgentSystem, {
     -- Nothing to edit here.
     updateUI = function(self, Slab) end,
 

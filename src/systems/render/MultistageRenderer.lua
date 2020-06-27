@@ -1,10 +1,13 @@
 local Renderer = dtrequire("systems.render.Renderer")
 
-local MultistageRenderer = Renderer:subtype({}, "droptune.systems.render.MultistageRenderer")
+local MultistageRenderer = Renderer:subtype("droptune.systems.render.MultistageRenderer")
 do
-    function MultistageRenderer:init(...)
+    function MultistageRenderer:init(children)
         Renderer.init(self)
-        self.children = {...}
+        self.children = children
+        for _, child in ipairs(self.children) do
+            child:setParent(self)
+        end
     end
 
     function MultistageRenderer:setup(pipeline) end

@@ -28,7 +28,7 @@ local function loadFile(path)
 end
 
 cargo.loaders = {
-  lua = lf and loadFile,
+  lua = lf and lf.load,
   png = lg and lg.newImage,
   jpg = lg and lg.newImage,
   dds = lg and lg.newImage,

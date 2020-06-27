@@ -4,7 +4,7 @@ local TransformComponent = components.Transform
 local PhysicsComponent = components.Physics
 local Renderer = dtrequire("systems.render.Renderer")
 
-local SpriteRenderer = Renderer:subtype({}, "droptune.render.SpriteRenderer")
+local SpriteRenderer = Renderer:subtype("droptune.render.SpriteRenderer")
 do
     SpriteRenderer.filter = SpriteComponent.filter
 

@@ -1,13 +1,13 @@
 local _, Component = dtrequire("entity").common()
-local editable = dtrequire("editable")
+local hooks = dtrequire("editor.hooks")
 
-local NameComponent = Component:subtype({}, "droptune.components.NameComponent")
+local NameComponent = Component:subtype({}, "droptune.components.Name")
 
 function NameComponent:new(name)
     return name
 end
 
-editable.registerComponent(NameComponent, {
+hooks.registerComponent(NameComponent, {
     updateUI = function(name, Slab)
         Slab.Text("Name: ")
         Slab.SameLine()

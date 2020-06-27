@@ -1,10 +1,10 @@
-local slabFactory = dtrequire("slab_factory")
+local slabfactory = dtrequire("slabfactory")
 
 local Scene = dtrequire("scene.Scene")
 local ConsoleScene = Scene:subtype()
 
 function ConsoleScene:init()
-    self.Slab = slabFactory().Slab
+    self.Slab = slabfactory().Slab
 
     self.slabhooks = {}
     self.Slab.Initialize(nil, self.slabhooks)

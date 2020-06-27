@@ -3,10 +3,10 @@ local fuzzel = dtrequire("lib.fuzzel")
 local Entity, Component = dtrequire("entity").common()
 local Agent, State = dtrequire("agent").common()
 local components = dtrequire("components")
-local editable = dtrequire("editable")
+local hooks = dtrequire("editor.hooks")
 local prototype = dtrequire("prototype")
 
-local Editable = editable.Editable
+local Editable = hooks.Editable
 local NameComponent = components.NameComponent
 
 local EntitiesFilterWindow = Agent:subtype()
@@ -179,7 +179,7 @@ do
         if newtext ~= agent.searchtext and #newtext > 0 then
             agent.searchtext = newtext
             modified = true
-            agent.searchresults = fuzzel.FuzzyAutocompleteRatio(newtext, editable.registeredComponentNames)
+            agent.searchresults = fuzzel.FuzzyAutocompleteRatio(newtext, hooks.registeredComponentNames)
         end
 
         Slab.BeginListBox("SearchResults", {Clear = modified})
@@ -208,7 +208,7 @@ do
         if isEntered then
             enteredName = enteredName or agent.searchresults[1]
 
-            local component = editable.registeredComponents[enteredName]
+            local component = hooks.registeredComponents[enteredName]
             local fresh = Editable.newDefault(component)
             if fresh then
                 entity:addComponent(component, fresh)

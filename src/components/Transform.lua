@@ -1,9 +1,9 @@
 local lume = dtrequire("lib.lume")
 local ecs = dtrequire("ecs")
-local editable = dtrequire("editable")
+local hooks = dtrequire("editor.hooks")
 local _, Component = ecs.common()
 
-local TransformComponent = Component:subtype({}, "droptune.components.TransformComponent")
+local TransformComponent = Component:subtype({}, "droptune.components.Transform")
 do
     function TransformComponent:init(x, y, rot)
         self.x = x or 0
@@ -12,7 +12,7 @@ do
     end
 end
 
-editable.registerComponent(TransformComponent, {
+hooks.registerComponent(TransformComponent, {
     newDefault = function()
         return TransformComponent:new(0, 0, 0)
     end,
@@ -21,7 +21,7 @@ editable.registerComponent(TransformComponent, {
         local x, y = camera:toScreen(self.x, self.y)
         if not shapes[1] then
             shape = hc:circle(x, y, 4)
-            shape.interaction = editable.interactions.DragInteraction:new(
+            shape.interaction = hooks.interactions.DragInteraction:new(
                 function(interaction, kind, x, y)
                     if kind == "mouse" then
                         self.x, self.y = interaction.camera:toWorld(x, y)
@@ -38,7 +38,7 @@ editable.registerComponent(TransformComponent, {
         local x, y = tx:transformPoint(16, 0)
         if not shapes[2] then
             shape = hc:circle(x, y, 4)
-            shape.interaction = editable.interactions.DragInteraction:new(
+            shape.interaction = hooks.interactions.DragInteraction:new(
                 function(interaction, kind, x, y)
                     if kind == "mouse" then
                         local pivotx, pivoty = self.x, self.y

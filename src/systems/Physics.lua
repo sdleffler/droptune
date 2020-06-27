@@ -1,4 +1,4 @@
-local editable = dtrequire("editable")
+local hooks = dtrequire("editor.hooks")
 local prototype = dtrequire("prototype")
 local tiny = dtrequire("lib.tiny")
 
@@ -41,7 +41,7 @@ do
     end
 end
 
-editable.registerSystem(PhysicsSystem, {
+hooks.registerSystem(PhysicsSystem, {
     updateUI = function(self, Slab)
         Slab.Text("TODO. bug sleffy about this shit, they bein' fucking lazy, the nerve of this dipshit")
     end,

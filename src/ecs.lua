@@ -1,4 +1,6 @@
+local lume = dtrequire("lib.lume")
 local prototype = dtrequire("prototype")
+local resource = dtrequire("resource")
 local tiny = dtrequire("lib.tiny")
 
 local ecs = {}
@@ -295,11 +297,11 @@ do
             end
         end
 
-        world:addEntity(e)
+        return world:addEntity(e)
     end
 
-    function World:deserializeEntities(serialized)
-        local entities = {}
+    function World:makeLoadEnv()
+        local entities, env = {}
 
         local function entityid(index)
             local e = entities[index]
@@ -316,24 +318,53 @@ do
             local self = self
 
             return function(components)
-                reconstruct(self, e, components)
+                return reconstruct(self, e, components)
             end
         end
 
-        local env = {
-            entity = entity,
-            entityid = entityid,
-        }
-
-        local ok, loaded = loadstring(serialized)
-        if not ok then
-            error(loaded)
+        local function instance(id, ...)
+            local res = resource.get(id)
+            if not res then
+                error("resource " .. tostring(id) .. " not found!")
+            end
+            return self:instantiate(res, env, ...)
         end
 
-        local ok, result = xpcall(setfenv(ok, env), debug.traceback)
+        env = {
+            entity = entity,
+            entityid = entityid,
+            instance = instance,
+        }
+
+        return env
+    end
+
+    function World:instantiate(serialized, env, ...)
+        local f
+        if type(serialized) == "string" then
+            local ok, loaded = loadstring(serialized)
+            if not ok then
+                error(loaded)
+            end
+
+            f = ok
+        elseif type(serialized) == "function" then
+            f = serialized
+        else
+            error("expected string or function")
+        end
+
+        local env = env or self:makeLoadEnv()    
+        local ok, result = xpcall(setfenv(f, env), debug.traceback, ...)
         if not ok then
             error(result)
         end
+
+        return result
+    end
+
+    function World:deserializeEntities(serialized, ...)
+        return self:instantiate(serialized, nil, ...)
     end
 end
 
