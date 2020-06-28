@@ -32,6 +32,10 @@ do
         self.physicsWorld:destroy()
     end
 
+    function PhysicsSystem:onRemove(e)
+        e[dtrequire("components.Physics")].body:destroy()
+    end
+
     function PhysicsSystem:update(dt)
         self.physicsWorld:update(dt)
     end

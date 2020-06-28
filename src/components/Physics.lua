@@ -280,120 +280,120 @@ ecs.Visitor[PhysicsComponent] = {
     finish = function(self) return self end,
 }
 
-hooks.registerComponent(PhysicsComponent, {
-    updateUI = function(self, Slab)
-        if self.body then
-            Slab.BeginLayout("PhysicsComponentLayout", {
-                Columns = 3,
-            })
+-- hooks.registerComponent(PhysicsComponent, {
+--     updateUI = function(self, Slab)
+--         if self.body then
+--             Slab.BeginLayout("PhysicsComponentLayout", {
+--                 Columns = 3,
+--             })
         
-            Slab.SetLayoutColumn(1)
-            Slab.Text("Position")
-            Slab.Text("Velocity")
+--             Slab.SetLayoutColumn(1)
+--             Slab.Text("Position")
+--             Slab.Text("Velocity")
         
-            local x, y, newX, newY = self.body:getPosition()
-            local xv, yv, newXV, newYV = self.body:getLinearVelocity()
+--             local x, y, newX, newY = self.body:getPosition()
+--             local xv, yv, newXV, newYV = self.body:getLinearVelocity()
         
-            Slab.SetLayoutColumn(2)
+--             Slab.SetLayoutColumn(2)
         
-            Slab.Text(" X: ")
-            Slab.SameLine()
-            if Slab.Input("PhysicsComponentPosX", {
-                ReturnOnText = false,
-                Text = string.format("%.1f", x),
-                NumbersOnly = true,
-                W = 75,
-            }) then
-                newX = Slab.GetInputNumber()
-            end
+--             Slab.Text(" X: ")
+--             Slab.SameLine()
+--             if Slab.Input("PhysicsComponentPosX", {
+--                 ReturnOnText = false,
+--                 Text = string.format("%.1f", x),
+--                 NumbersOnly = true,
+--                 W = 75,
+--             }) then
+--                 newX = Slab.GetInputNumber()
+--             end
         
-            Slab.Text(" X: ")
-            Slab.SameLine()
-            if Slab.Input("PhysicsComponentVelX", {
-                ReturnOnText = false,
-                Text = string.format("%.1f", xv),
-                NumbersOnly = true,
-                W = 75,
-            }) then
-                newXV = Slab.GetInputNumber()
-            end
+--             Slab.Text(" X: ")
+--             Slab.SameLine()
+--             if Slab.Input("PhysicsComponentVelX", {
+--                 ReturnOnText = false,
+--                 Text = string.format("%.1f", xv),
+--                 NumbersOnly = true,
+--                 W = 75,
+--             }) then
+--                 newXV = Slab.GetInputNumber()
+--             end
         
-            Slab.SetLayoutColumn(3)
+--             Slab.SetLayoutColumn(3)
         
-            Slab.Text(" Y: ")
-            Slab.SameLine()
-            if Slab.Input("PhysicsComponentPosY", {
-                ReturnOnText = false,
-                Text = string.format("%.1f", y),
-                NumbersOnly = true,
-                W = 75,
-            }) then
-                newY = Slab.GetInputNumber()
-            end
+--             Slab.Text(" Y: ")
+--             Slab.SameLine()
+--             if Slab.Input("PhysicsComponentPosY", {
+--                 ReturnOnText = false,
+--                 Text = string.format("%.1f", y),
+--                 NumbersOnly = true,
+--                 W = 75,
+--             }) then
+--                 newY = Slab.GetInputNumber()
+--             end
         
-            Slab.Text(" Y: ")
-            Slab.SameLine()
-            if Slab.Input("PhysicsComponentVelY", {
-                ReturnOnText = false,
-                Text = string.format("%.1f", yv),
-                NumbersOnly = true,
-                W = 75,
-            }) then
-                newYV = Slab.GetInputNumber()
-            end
+--             Slab.Text(" Y: ")
+--             Slab.SameLine()
+--             if Slab.Input("PhysicsComponentVelY", {
+--                 ReturnOnText = false,
+--                 Text = string.format("%.1f", yv),
+--                 NumbersOnly = true,
+--                 W = 75,
+--             }) then
+--                 newYV = Slab.GetInputNumber()
+--             end
         
-            Slab.EndLayout()
+--             Slab.EndLayout()
         
-            if newX or newY then
-                self.body:setPosition(newX or x, newY or y)
-            end
+--             if newX or newY then
+--                 self.body:setPosition(newX or x, newY or y)
+--             end
         
-            if newXV or newYV then
-                self.body:setLinearVelocity(newXV or xv, newYV or yv)
-            end
-        else
-            Slab.Text("Empty. Does this world have a PhysicsSystem?")
-        end
+--             if newXV or newYV then
+--                 self.body:setLinearVelocity(newXV or xv, newYV or yv)
+--             end
+--         else
+--             Slab.Text("Empty. Does this world have a PhysicsSystem?")
+--         end
 
-        return self
-    end,
+--         return self
+--     end,
 
-    updateInteractableShapes = function(self, hc, shapes, camera)
-        local x, y = camera:toScreen(self.body:getPosition())
-        if not shapes[1] then
-            shape = hc:circle(x, y, 4)
-            shape.interaction = hooks.interactions.DragInteraction:new(
-                function(interaction, kind, x, y)
-                    if kind == "mouse" then
-                        self.body:setPosition(interaction.camera:toWorld(x, y))
-                    end
-                end,
-                1
-            )
-            shapes[1] = shape
-        else
-            shapes[1]:moveTo(x, y)
-        end
+--     updateInteractableShapes = function(self, hc, shapes, camera)
+--         local x, y = camera:toScreen(self.body:getPosition())
+--         if not shapes[1] then
+--             shape = hc:circle(x, y, 4)
+--             shape.interaction = hooks.interactions.DragInteraction:new(
+--                 function(interaction, kind, x, y)
+--                     if kind == "mouse" then
+--                         self.body:setPosition(interaction.camera:toWorld(x, y))
+--                     end
+--                 end,
+--                 1
+--             )
+--             shapes[1] = shape
+--         else
+--             shapes[1]:moveTo(x, y)
+--         end
 
-        local tx = love.math.newTransform(x, y, self.body:getAngle())
-        local x, y = tx:transformPoint(16, 0)
-        if not shapes[2] then
-            shape = hc:circle(x, y, 4)
-            shape.interaction = hooks.interactions.DragInteraction:new(
-                function(interaction, kind, x, y)
-                    if kind == "mouse" then
-                        local pivotx, pivoty = self.body:getPosition()
-                        local mousex, mousey = interaction.camera:toWorld(x, y)
-                        self.body:setAngle(lume.angle(pivotx, pivoty, mousex, mousey))
-                    end
-                end,
-                1
-            )
-            shapes[2] = shape
-        else
-            shapes[2]:moveTo(x, y)
-        end
-    end,
-})
+--         local tx = love.math.newTransform(x, y, self.body:getAngle())
+--         local x, y = tx:transformPoint(16, 0)
+--         if not shapes[2] then
+--             shape = hc:circle(x, y, 4)
+--             shape.interaction = hooks.interactions.DragInteraction:new(
+--                 function(interaction, kind, x, y)
+--                     if kind == "mouse" then
+--                         local pivotx, pivoty = self.body:getPosition()
+--                         local mousex, mousey = interaction.camera:toWorld(x, y)
+--                         self.body:setAngle(lume.angle(pivotx, pivoty, mousex, mousey))
+--                     end
+--                 end,
+--                 1
+--             )
+--             shapes[2] = shape
+--         else
+--             shapes[2]:moveTo(x, y)
+--         end
+--     end,
+-- })
 
 return PhysicsComponent

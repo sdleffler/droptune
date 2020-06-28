@@ -27,6 +27,7 @@ do
             }
             self[obj] = entry
         end
+
         return entry
     end
 
@@ -78,6 +79,8 @@ do
         if #hovered == 1 then
             agent = hovered[1].agent
             editor.active = agent
+        else
+            editor.active = nil
         end
 
         if agent then
@@ -126,8 +129,9 @@ do
     function RunningState:updateSlabInputs(dt, editor)
         editor.slabinputs.getMousePosition = {unpack(editor.mousestate.mousePos)}
         
+        local Slab = editor.Slab
         for i = 1, 3 do
-            editor.slabinputs.isMouseDown[i] = i ~= 2 and editor.mousestate.mouseDown[i]
+            editor.slabinputs.isMouseDown[i] = not (i == 2 or Slab.IsVoidHovered()) and editor.mousestate.mouseDown[i]
         end
     end
 
@@ -302,7 +306,7 @@ function main.init(editor)
 
     editor.tool = editor.tools["Look"]
 
-    editor.selected = {}
+    editor.selected = setmetatable({}, {__mode = "k"})
 
     editor.idpool = IdPool:new()
     editor.tracker = TrackerSystem:new(editor.idpool)

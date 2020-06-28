@@ -7,43 +7,48 @@ local Instantiate = Tool:subtype()
 do
     local init = {}
     do
-        function init.mousepressed(agent, x, y, button)
-            if button == 1 and agent.resource then
-                local wx, wy = agent.editor:getCamera():toWorld(x, y)
+        function init:mousepressed(x, y, button)
+            if button == 1 and self.resource then
+                local wx, wy = self.editor:getCamera():toWorld(x, y)
                 local env = lume.merge(
                     {editor = {x = wx, y = wy}},
-                    agent.editor.world:makeLoadEnv()
+                    self.editor.world:makeLoadEnv()
                 )
 
-                agent.editor.world:instantiate(agent.resource, env)
+                local co = self.editor.world:coinstantiate(self.resource, env)
+                coroutine.resume(co, wx, wy, button)
+
+                if coroutine.status(co) == "suspended" then
+                    self.co = co
+                end
             end
         end
 
-        function init.makeContextMenu(agent)
-            local Slab = agent.editor.Slab
+        function init:makeContextMenu()
+            local Slab = self.editor.Slab
 
-            if agent.resource then
-                Slab.MenuItem("Selected: " .. agent.script)
+            if self.resource then
+                Slab.MenuItem("Selected: " .. self.script)
             else
                 Slab.MenuItem("No script selected")
             end
 
             if Slab.MenuItem("Open script...") then
-                agent:setState("choosing")
+                self:setState("choosing")
             end
 
             Slab.Separator()
 
-            for i, recent in ipairs(agent.recents) do
+            for i, recent in ipairs(self.recents) do
                 if Slab.MenuItem(recent) then
                     local res = resource.get(recent)
                     if res then
                         -- We're going to break here, so it's okay to move elements
                         -- around.
-                        table.remove(agent.recents, i)
-                        table.insert(agent.recents, 1, recent)
-                        agent.script = recent
-                        agent.resource = res
+                        table.remove(self.recents, i)
+                        table.insert(self.recents, 1, recent)
+                        self.script = recent
+                        self.resource = res
 
                         break
                     end
@@ -51,33 +56,33 @@ do
             end
         end
 
-        function init.overrideContextMenu(agent)
+        function init:overrideContextMenu()
             return false
         end
     end
 
     local choosing = {}
     do
-        function choosing.update(agent, dt)
-            local Slab = agent.editor.Slab
+        function choosing:update(dt)
+            local Slab = self.editor.Slab
 
             if not Slab.BeginWindow("InstantiateChooseScript", {
                 Title = "Choose script",
                 IsOpen = true,
             }) then
-                agent:setState("init")
+                self:setState("init")
             else
                 if Slab.Input("InstantiateScriptName", {
-                    Text = agent.script or "",
+                    Text = self.script or "",
                     ReturnOnText = false,
                 }) then
                     local script = Slab.GetInputText()
                     local res = resource.get(script)
                     if res then
-                        agent.script = script
-                        agent.resource = res
-                        table.insert(agent.recents, 1, script)
-                        agent:setState("init")
+                        self.script = script
+                        self.resource = res
+                        table.insert(self.recents, 1, script)
+                        self:setState("init")
                     end
                 end
     
@@ -87,8 +92,8 @@ do
             Slab.EndWindow()
         end
 
-        function choosing.makeContextMenu(agent)
-            local Slab = agent.editor.Slab
+        function choosing:makeContextMenu()
+            local Slab = self.editor.Slab
 
             Slab.MenuItem("Choosing...")
         end
