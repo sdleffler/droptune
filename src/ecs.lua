@@ -146,10 +146,20 @@ do
         self.entities = {}
         self.systems = {}
 
+        self.pipeline = dtrequire("systems.render.Pipeline"):new()
+
+        self:addDefaultSystems()
         self:add(...)
         self:refresh()
 
-        self.pipeline = dtrequire("systems.render.Pipeline"):new()
+        self.isRendering = false
+    end
+
+    function World:addDefaultSystems()
+        self:addSystem(dtrequire("systems.Agent"):new())
+        self:addSystem(dtrequire("systems.Physics"):new())
+        self:addSystem(dtrequire("systems.Transform"):new())
+        self:refresh()
     end
 
     function World:getPipeline()
@@ -352,13 +362,25 @@ do
             entityid = entityid,
             instance = instance,
             yieldor = yieldor,
-            coroutine = coroutine,
-
-            mouse = love.mouse,
-            keyboard = love.keyboard,
 
             Entity = Entity,
             Component = Component,
+
+            print = print,
+            error = error,
+            assert = assert,
+            pairs = pairs,
+            ipairs = ipairs,
+            next = next,
+            type = type,
+            unpack = unpack,
+            select = select,
+
+            mouse = lume.clone(love.mouse),
+            keyboard = lume.clone(love.keyboard),
+            coroutine = lume.clone(coroutine),
+            math = lume.merge(math, love.math),
+            table = lume.clone(table),
         }
 
         return env

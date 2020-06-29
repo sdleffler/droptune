@@ -1,6 +1,7 @@
 local lume = dtrequire("lib.lume")
 local Agent, State = dtrequire("agent").common()
 local Tool = dtrequire("keikaku.interactable").Tool
+local ResourcePicker = dtrequire("keikaku.ResourcePicker")
 local resource = dtrequire("resource")
 
 local Instantiate = Tool:subtype()
@@ -20,6 +21,7 @@ do
 
                 if coroutine.status(co) == "suspended" then
                     self.co = co
+                    self:setState("continuing")
                 end
             end
         end
@@ -61,35 +63,39 @@ do
         end
     end
 
+    local continuing = {}
+    do
+        function continuing:mousepressed(x, y, button)
+            local co, wx, wy = self.co, self.editor:getCamera():toWorld(x, y)
+            coroutine.resume(co, wx, wy, button)
+
+            if coroutine.status(co) ~= "suspended" then
+                self.co = nil
+                self:setState("init")
+            end
+        end
+
+        function continuing:overrideContextMenu()
+            return true
+        end
+    end
+
     local choosing = {}
     do
         function choosing:update(dt)
-            local Slab = self.editor.Slab
-
-            if not Slab.BeginWindow("InstantiateChooseScript", {
-                Title = "Choose script",
-                IsOpen = true,
-            }) then
-                self:setState("init")
-            else
-                if Slab.Input("InstantiateScriptName", {
-                    Text = self.script or "",
-                    ReturnOnText = false,
-                }) then
-                    local script = Slab.GetInputText()
-                    local res = resource.get(script)
-                    if res then
-                        self.script = script
-                        self.resource = res
-                        table.insert(self.recents, 1, script)
-                        self:setState("init")
-                    end
-                end
-    
-                Slab.SetInputFocus("InstantiateScriptName")
+            local picked = self.picker:updateUI()
+            if not picked then
+                return
             end
-            
-            Slab.EndWindow()
+
+            local res = resource.get(picked)
+            if type(res) == "function" then
+                -- Assume it's a script, for now.
+                self.script = picked
+                self.resource = res
+                table.insert(self.recents, 1, picked)
+                self:setState("init")
+            end
         end
 
         function choosing:makeContextMenu()
@@ -101,6 +107,7 @@ do
 
     local states = {
         init = State:new(init),
+        continuing = State:new(continuing),
         choosing = State:new(choosing),
     }
 
@@ -108,6 +115,12 @@ do
         Agent.init(self, states)
         self.editor = editor
         self.recents = {}
+        self.picker = ResourcePicker:new(
+            editor,
+            "keikaku.tools.Instantiate",
+            nil,
+            "Choose instantiate script"
+        )
     end
 
     function Instantiate:overrideGUI()

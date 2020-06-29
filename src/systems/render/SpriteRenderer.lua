@@ -1,7 +1,7 @@
 local components = dtrequire("components")
 local SpriteComponent = components.render.Sprite
 local AnimatedSpriteComponent = components.render.AnimatedSprite
-local TransformComponent = components.Transform
+local PositionComponent = components.Position
 local PhysicsComponent = components.Physics
 local Renderer = dtrequire("systems.render.Renderer")
 
@@ -16,17 +16,9 @@ do
             for _, e in ipairs(self.entities) do
                 love.graphics.push()
 
-                local physics = e[PhysicsComponent]
-                if physics then
-                    local body = physics.body
-                    love.graphics.translate(body:getWorldCenter())
-                    love.graphics.rotate(body:getAngle())
-                end
-
-                local transform = e[TransformComponent]
-                if transform then
-                    love.graphics.translate(transform.x, transform.y)
-                    love.graphics.rotate(transform.rot)
+                local t = e:getTransform()
+                if t then
+                    love.graphics.applyTransform(t)
                 end
 
                 local animated = e[AnimatedSpriteComponent]

@@ -66,8 +66,19 @@ if not _keikaku_interactable_G then
 
         function InteractorSystem:update(dt)
             for _, child in ipairs(self.children) do
-                child:update(dt)
+                if child.update then
+                    child:update(dt)
+                end
             end
+        end
+
+        function InteractorSystem:draw(pipeline)
+            self:setup(pipeline)
+            for _, child in ipairs(self.children) do
+                child:draw(pipeline)
+            end
+            self.editor.tool:message("draw", pipeline)
+            self:teardown(pipeline)
         end
     end
 

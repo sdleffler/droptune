@@ -3,18 +3,23 @@ local ecs = dtrequire("ecs")
 local hooks = dtrequire("editor.hooks")
 local _, Component = ecs.common()
 
-local TransformComponent = Component:subtype({}, "droptune.components.Transform")
+local PositionComponent = Component:subtype({}, "droptune.components.Position")
 do
-    function TransformComponent:init(x, y, rot)
+    function PositionComponent:init(x, y, rot)
         self.x = x or 0
         self.y = y or 0
         self.rot = rot or 0
     end
+
+    function PositionComponent:applyTo(transform)
+        transform:translate(self.x, self.y)
+        transform:rotate(self.rot)
+    end
 end
 
--- hooks.registerComponent(TransformComponent, {
+-- hooks.registerComponent(PositionComponent, {
 --     newDefault = function()
---         return TransformComponent:new(0, 0, 0)
+--         return PositionComponent:new(0, 0, 0)
 --     end,
 
 --     updateInteractableShapes = function(self, hc, shapes, camera)
@@ -103,4 +108,4 @@ end
 --     end,
 -- })
 
-return TransformComponent
+return PositionComponent

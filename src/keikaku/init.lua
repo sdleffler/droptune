@@ -7,6 +7,17 @@ local slabfactory = dtrequire("slabfactory")
 
 local keikaku = {}
 
+keikaku.agents = dtrequire("keikaku.agents")
+
+keikaku.Interaction = dtrequire("keikaku.interactable").Interaction
+keikaku.Tool = dtrequire("keikaku.interactable").Tool
+
+keikaku.registerInteraction = dtrequire("keikaku.interactable").registerInteraction
+
+keikaku.tools = dtrequire("keikaku.tools")
+
+keikaku.ResourcePicker = dtrequire("keikaku.ResourcePicker")
+
 local Editor = scene.Scene:subtype()
 do
     keikaku.Editor = Editor
@@ -48,6 +59,10 @@ do
 
     function Editor:wheelmoved(scenestack, x, y)
         dtrequire("keikaku.main").wheelmoved(self, x, y)
+    end
+
+    function Editor:quit(scenestack)
+        return dtrequire("keikaku.main").quit(self)
     end
 end
 

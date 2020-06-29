@@ -190,7 +190,8 @@ do
     function InteractingState:updateSlabInputs(dt, editor)
         editor.slabinputs.getMousePosition = {unpack(editor.mousestate.mousePos)}
 
-        local override = editor.active ~= nil and editor.active:overrideGUI()
+        local override = editor.active ~= nil and
+            (editor.active:overrideGUI() and (not editor.Slab.IsVoidHovered() or editor.active:overrideContextMenu()))
         for i = 1, 3 do
             editor.slabinputs.isMouseDown[i] = (not override) and editor.mousestate.mouseDown[i]
         end
@@ -288,6 +289,18 @@ end
 
 local main = {}
 
+function main.setTool(editor, name)
+    local cached = editor.toolcache[name]
+    if not cached then
+        cached = dtrequire("keikaku.tools")[name]:new(editor)
+        editor.toolcache[name] = cached
+    end
+
+    if cached then
+        editor.tool = cached
+    end
+end
+
 function main.init(editor)
     editor.main = main
     editor.agent = Agent:new({
@@ -299,12 +312,8 @@ function main.init(editor)
         confirm = ConfirmState:new(),
     })
 
-    editor.tools = {
-        ["Look"] = dtrequire("keikaku.tools.Look"):new(editor),
-        ["Instantiate"] = dtrequire("keikaku.tools.Instantiate"):new(editor),
-    }
-
-    editor.tool = editor.tools["Look"]
+    editor.toolcache = {}
+    main.setTool(editor, "keikaku.tools.Look")
 
     editor.selected = setmetatable({}, {__mode = "k"})
 
@@ -429,6 +438,10 @@ end
 
 function main.message(editor, msg, ...)
     print(msg, ...)
+end
+
+function main.quit(editor)
+    return false
 end
 
 return main

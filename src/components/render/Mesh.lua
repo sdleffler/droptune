@@ -3,7 +3,7 @@ local _, Component = ecs.common()
 local prototype = dtrequire("prototype")
 
 local MeshComponent = Component:subtype({}, 
-    "droptune.components.render.MeshComponent")
+    "droptune.components.render.Mesh")
 do
     function MeshComponent:init(...)
         -- Try to detect the usage parameter since we can't get it

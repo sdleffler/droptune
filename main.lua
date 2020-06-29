@@ -8,7 +8,7 @@ do
     local NameComponent = dr.components.Name
     local PhysicsComponent = dr.components.Physics
 
-    local world = dr.ecs.World:new(dr.systems.Physics:new())
+    local world = dr.ecs.World:new()
     world:refresh()
 
     world:addEntity(Entity:new({[NameComponent] = "Foo"}))
@@ -38,7 +38,7 @@ do
 end
 
 do
-    local world = dr.ecs.World:new(dr.systems.Physics:new())
+    local world = dr.ecs.World:new()
     world:refresh()
 
     world:deserializeEntities(serialized)
@@ -50,12 +50,12 @@ function love.load(args)
     scenestack = dr.scene.SceneStack:new()
     scenestack:installHooks(love)
 
-    world = dr.ecs.World:new(dr.systems.Physics:new())
+    world = dr.ecs.World:new()
     world:setRenderer(dr.systems.render.SpriteRenderer:new())
 
     -- world:addEntity(dr.ecs.Entity:new {
     --     dr.components.render.Sprite:new("test.Textures.love-logo"),
-    --     dr.components.Transform:new(400, 300),
+    --     dr.components.Position:new(400, 300),
     -- })
 
     local e = world:addEntity(dr.ecs.Entity:new {

@@ -1,4 +1,5 @@
 local lume = dtrequire("lib.lume")
+local prototype = dtrequire("prototype")
 
 local menu = {}
 
@@ -35,9 +36,9 @@ function menu.updateContextMenu(editor, dt)
     editor.agent:message("setContextMenuOpen", editor, begin)
     if begin then
         if Slab.BeginMenu("Tool") then
-            for name, tool in pairs(editor.tools) do
-                if Slab.MenuItemChecked(name, editor.tool == tool) then
-                    editor.tool = tool
+            for name, tool in pairs(dtrequire("keikaku.tools")) do
+                if Slab.MenuItemChecked(name, prototype.is(editor.tool, tool)) then
+                    dtrequire("keikaku.main").setTool(editor, name)
                 end
             end
 

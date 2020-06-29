@@ -9,7 +9,7 @@ return entity(1) {
     ["droptune.components.render.Sprite"] = {
         ["resource"] = "test.Textures.love-logo",
     },
-    ["droptune.components.Transform"] = {
+    ["droptune.components.Position"] = {
         ["x"] = x,
         ["y"] = y,
         ["rot"] = 0,

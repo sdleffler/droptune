@@ -123,7 +123,7 @@ function SceneStack:installHooks(table)
     for _, cb in ipairs(loveCallbacks) do
         if not table[cb] then
             table[cb] = function(...)
-                return self:message(cb, ...)
+                return select(2, self:message(cb, ...))
             end
         end
     end

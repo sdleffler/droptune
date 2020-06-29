@@ -1,4 +1,5 @@
 local lume = dtrequire("lib.lume")
+local vec2 = dtrequire("vec2")
 
 local ecs = dtrequire("ecs")
 local hooks = dtrequire("editor.hooks")
@@ -18,6 +19,20 @@ function PhysicsComponent:init(world, ...)
     local physicsWorld = physicsSystem.physicsWorld
     
     self.body = love.physics.newBody(physicsWorld, ...)
+end
+
+function PhysicsComponent:applyTo(transform)
+    local body = self.body
+    transform:translate(body:getWorldCenter())
+    transform:rotate(body:getAngle())
+    return transform
+end
+
+function PhysicsComponent:applyInverseTo(transform)
+    local body = self.body
+    transform:rotate(-body:getAngle())
+    transform:translate(vec2.neg(body:getWorldCenter()))
+    return transform
 end
 
 local function visitCircleShape(shape, v)

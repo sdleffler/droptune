@@ -62,6 +62,28 @@ do
         self.button = opts.button or 1
         self.entity = opts.entity
     end
+
+    function DragAgent.newFromAccessors(editor, entity, set, get)
+        local offsetX, offsetY
+        
+        local function update(x, y)
+            x, y = editor:getCamera():toWorld(x, y)
+            set(x - offsetX, y - offsetY)
+        end
+
+        local function start(sx, sy)
+            sx, sy = editor:getCamera():toWorld(sx, sy)
+            local x, y = get()
+            offsetX, offsetY = sx - x, sy - y
+        end
+
+        return DragAgent:new({
+            start = start,
+            mousemoved = update,
+            finish = update,
+            entity = entity,
+        })
+    end
 end
 
 return DragAgent
