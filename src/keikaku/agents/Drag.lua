@@ -77,12 +77,17 @@ do
             offsetX, offsetY = sx - x, sy - y
         end
 
-        return DragAgent:new({
+        local agent = DragAgent:new({
             start = start,
             mousemoved = update,
             finish = update,
             entity = entity,
         })
+
+        agent.set = set
+        agent.get = get
+
+        return agent
     end
 end
 

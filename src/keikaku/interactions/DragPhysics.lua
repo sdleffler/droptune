@@ -9,6 +9,11 @@ local DragAgent = dtrequire("keikaku.agents.Drag")
 local interactable = dtrequire("keikaku.interactable")
 local DragPhysics = interactable.Interaction:subtype()
 
+local controlScale = 16
+local csFrac3q = controlScale * 3 / 4
+local csFrac4 = controlScale / 4
+local csFrac8 = controlScale / 8
+
 function DragPhysics:init(editor)
     interactable.Interaction.init(self, editor)
     self.shapes = {}
@@ -35,7 +40,7 @@ function DragPhysics:onAdd(e)
     local function getOffcenter()
         return physc:applyTo(t:reset())
             :scale(1 / self.editor:getCamera():getScale())
-            :transformPoint(16, 0)
+            :transformPoint(controlScale, 0)
     end
     
     local function setOffcenter(x, y)
@@ -53,7 +58,7 @@ function DragPhysics:onAdd(e)
     local center = self.editor.hc:circle(ax, ay, 4)
     center.agent = DragAgent.newFromAccessors(self.editor, e, setCenter, getCenter)
     
-    local bx, by = toScreen:transformPoint(16, 0)
+    local bx, by = toScreen:transformPoint(controlScale, 0)
     local offcenter = self.editor.hc:circle(bx, by, 4)
     offcenter.agent = DragAgent.newFromAccessors(self.editor, e, setOffcenter, getOffcenter)
 
@@ -81,7 +86,7 @@ function DragPhysics:update(dt)
             :scale(1 / camera:getScale())
 
         self.shapes[e].center:moveTo(t:transformPoint(0, 0))
-        self.shapes[e].offcenter:moveTo(t:transformPoint(16, 0))
+        self.shapes[e].offcenter:moveTo(t:transformPoint(controlScale, 0))
     end
 end
 
@@ -95,11 +100,11 @@ function DragPhysics:draw(pipeline)
             love.graphics.push()
             love.graphics.applyTransform(e[PhysicsComponent]:applyTo(tx:reset()))
             love.graphics.scale(1 / pipeline.camera:getScale())
-            love.graphics.line(0, 16, 0, 0, 16, 0)
-            love.graphics.line(-2, 12, 0, 16, 2, 12)
+            love.graphics.line(0, controlScale, 0, 0, controlScale, 0)
+            love.graphics.line(-csFrac8, csFrac3q, 0, controlScale, csFrac8, csFrac3q)
             love.graphics.pop()
         end
     end)
 end
 
-interactable.registerInteraction("droptune.interaction.DragPhysics", DragPhysics)
+--interactable.registerInteraction("droptune.interaction.DragPhysics", DragPhysics)

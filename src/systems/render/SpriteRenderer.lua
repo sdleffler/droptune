@@ -5,6 +5,9 @@ local PositionComponent = components.Position
 local PhysicsComponent = components.Physics
 local Renderer = dtrequire("systems.render.Renderer")
 
+local cpml = dtrequire("lib.cpml")
+local mat4, vec3 = cpml.mat4, cpml.vec3
+
 local SpriteRenderer = Renderer:subtype("droptune.render.Sprite")
 do
     function SpriteRenderer:filter(e)
@@ -12,28 +15,32 @@ do
     end
 
     function SpriteRenderer:draw(pipeline)
-        pipeline:transformed(function(l, t, w, h)
-            for _, e in ipairs(self.entities) do
-                love.graphics.push()
+        local transform = mat4.identity()
+        local model = mat4.identity()
+    
+        pipeline:setShader()
+        pipeline:setViewTransform(pipeline:getCameraMatrix())
+        for _, e in ipairs(self.entities) do
+            e:getTransform(transform:identity())
 
-                local t = e:getTransform()
-                if t then
-                    love.graphics.applyTransform(t)
-                end
+            local animated = e[AnimatedSpriteComponent]
+            if animated then
+                model:identity()
+                model:translate(model, vec3(-animated.ox, -animated.oy, 0))
+                model:scale(model, vec3(animated.sx, animated.sy, 1))
 
-                local animated = e[AnimatedSpriteComponent]
-                if animated then
-                    animated.animation:draw(0, 0, 0, animated.sx, animated.sy, animated.ox, animated.oy)
-                end
-
-                local sprite = e[SpriteComponent]
-                if sprite then
-                    love.graphics.draw(sprite.image)
-                end
-
-                love.graphics.pop()
+                pipeline:setModelTransform(transform * model)
+                animated.animation:draw()
             end
-        end)
+
+            local sprite = e[SpriteComponent]
+            if sprite then
+                pipeline:setModelTransform(transform)
+                love.graphics.draw(sprite.image)
+            end
+        end
+        pipeline:setModelTransform()
+        pipeline:setViewTransform()
     end
 end
 

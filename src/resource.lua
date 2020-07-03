@@ -16,7 +16,6 @@ function cargo.loaders.json(path)
 end
 
 function cargo.loaders.bank(path)
-    print(path)
     fmod.loadBank(path, 0)
 end
 
@@ -25,7 +24,6 @@ function resource.addNamespace(namespace, path)
 end
 
 function resource.get(name)
-    print("fetching resource "..name)
     local node = base
     for _, key in ipairs(lume.split(name, ".")) do
         if node then
@@ -40,5 +38,7 @@ end
 function resource.getTable()
     return base
 end
+
+resource.addNamespace("droptune", DROPTUNE_BASE .. "assets")
 
 return resource

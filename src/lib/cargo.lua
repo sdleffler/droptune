@@ -10,7 +10,7 @@ local function merge(target, source, ...)
   return merge(target, ...)
 end
 
-local la, lf, lg = love.audio, love.filesystem, love.graphics
+local la, lf, lg, li = love.audio, love.filesystem, love.graphics, love.image
 
 local function makeSound(path)
   local info = lf.getInfo(path, 'file')
@@ -40,7 +40,11 @@ cargo.loaders = {
   fnt = lg and lg.newFont
 }
 
-cargo.processors = {}
+cargo.processors = {
+  [".-%.png$"] = function(image, path, t, k)
+    t[k .. ":data"] = li.newImageData(path)
+  end,
+}
 
 function cargo.init(config)
   if type(config) == 'string' then
@@ -67,7 +71,7 @@ function cargo.init(config)
           rawset(t, k, asset)
           for pattern, processor in pairs(processors) do
             if file:match(pattern) then
-              processor(asset, file, t)
+              processor(asset, file, t, k)
             end
           end
           return asset

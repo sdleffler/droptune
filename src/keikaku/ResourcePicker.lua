@@ -14,8 +14,8 @@ do
         local picked
 
         for k, v in pairs(table) do
-            if type(v) == "table" then
-                if v._path and Slab.BeginTree(path .. k, {Label = k}) then
+            if type(v) == "table" and v._path then
+                if Slab.BeginTree(path .. k, {Label = k}) then
                     v() -- preload the table so we can look inside
                     picked = picked or buildTree(self, Slab, path .. k .. ".", v)
                     Slab.EndTree()

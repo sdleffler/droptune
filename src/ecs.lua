@@ -159,6 +159,7 @@ do
         self:addSystem(dtrequire("systems.Agent"):new())
         self:addSystem(dtrequire("systems.Physics"):new())
         self:addSystem(dtrequire("systems.Transform"):new())
+        self:addSystem(dtrequire("systems.BoundingBox"):new())
         self:refresh()
     end
 

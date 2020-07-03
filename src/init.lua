@@ -130,6 +130,7 @@ local status, err = xpcall(function()
 
     droptune.bitser = dtrequire("lib.bitser")
     droptune.cargo = dtrequire("lib.cargo")
+    droptune.cpml = dtrequire("lib.cpml")
     droptune.HC = dtrequire("lib.HC")
     droptune.inspect = dtrequire("lib.inspect")
     droptune.json = dtrequire("lib.json")

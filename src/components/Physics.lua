@@ -1,5 +1,8 @@
 local lume = dtrequire("lib.lume")
-local vec2 = dtrequire("vec2")
+local cpml = dtrequire("lib.cpml")
+local mat4, vec3 = cpml.mat4, cpml.vec3
+
+local plusz = vec3(0, 0, 1)
 
 local ecs = dtrequire("ecs")
 local hooks = dtrequire("editor.hooks")
@@ -21,18 +24,22 @@ function PhysicsComponent:init(world, ...)
     self.body = love.physics.newBody(physicsWorld, ...)
 end
 
-function PhysicsComponent:applyTo(transform)
+function PhysicsComponent:getTransform(mat)
     local body = self.body
-    transform:translate(body:getWorldCenter())
-    transform:rotate(body:getAngle())
-    return transform
+    local x, y = body:getWorldCenter()
+    mat
+        :rotate(mat, body:getAngle(), plusz)
+        :translate(mat, vec3(x, y, 0))
+    return mat
 end
 
-function PhysicsComponent:applyInverseTo(transform)
+function PhysicsComponent:getInverseTransform(mat)
     local body = self.body
-    transform:rotate(-body:getAngle())
-    transform:translate(vec2.neg(body:getWorldCenter()))
-    return transform
+    local x, y = body:getWorldCenter()
+    mat
+        :translate(mat, vec3(-x, -y, 0))
+        :rotate(mat, -body:getAngle(), plusz)
+    return mat
 end
 
 local function visitCircleShape(shape, v)

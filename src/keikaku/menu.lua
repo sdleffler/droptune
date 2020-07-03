@@ -15,6 +15,38 @@ function menu.worldMenu(editor, dt)
             editor.agent:message("pauseWorld", editor)
         end
 
+        Slab.Separator()
+
+        if Slab.MenuItem("Save") then
+            editor.agent:message("saveWorld", editor)
+        end
+
+        if Slab.MenuItem("Save as...") then
+            editor.agent:message("saveWorldAs", editor)
+        end
+
+        if Slab.MenuItem("Open...") then
+            editor.agent:message("openWorld", editor)
+        end
+
+        Slab.Separator()
+
+        if Slab.MenuItem("Close editor") then
+            editor.agent:message("closeEditor", editor)
+        end
+
+        Slab.EndMenu()
+    end
+
+    if Slab.BeginMenu("Edit") then
+        if Slab.MenuItem("Undo") then
+            editor.agent:message("undo", editor)
+        end
+
+        if Slab.MenuItem("Redo") then
+            editor.agent:message("redo", editor)
+        end
+
         Slab.EndMenu()
     end
 end
