@@ -14,3 +14,6 @@
 [submodule "src/lib/HC"]
 	path = src/lib/HC
 	url = https://github.com/sdleffler/HC
+[submodule "src/lib/cpml"]
+	path = src/lib/cpml
+	url = https://github.com/sdleffler/cpml
