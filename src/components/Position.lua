@@ -13,11 +13,11 @@ do
     function PositionComponent:init(x, y, rot, sx, sy, ox, oy)
         self.position = vec3(x, y, 0)
         self.angle = angle or 0
-        self.scale = vec3(sx, sy, 0)
+        self.scale = vec3(sx, sy, 1)
         self.origin = vec3(ox, oy, 0)
     end
 
-    function PositionComponent:applyTransformTo(mat)
+    function PositionComponent:getTransform(mat)
         return mat
             :translate(mat, self.origin)
             :scale(mat, self.scale)
@@ -25,11 +25,11 @@ do
             :translate(mat, self.position)
     end
 
-    function PositionComponent:applyInverseTransformTo(mat)
+    function PositionComponent:getInverseTransform(mat)
         return mat
             :translate(mat, -self.position)
             :rotate(mat, -self.angle, plusz)
-            :scale(mat, vec3(1/self.scale.x, 1/self.scale.y, 0))
+            :scale(mat, vec3(1/self.scale.x, 1/self.scale.y, 1/self.scale.z))
             :translate(mat, -self.origin)
         end
 end

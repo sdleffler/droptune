@@ -1,5 +1,7 @@
 local lume = dtrequire("lib.lume")
-local vec2 = dtrequire("vec2")
+
+local cpml = dtrequire("lib.cpml")
+local mat4, vec3, vec2 = cpml.mat4, cpml.vec3, cpml.vec2
 
 local PhysicsComponent = dtrequire("components").Physics
 local PositionComponent = dtrequire("components").Position
@@ -22,44 +24,32 @@ end
 DragPhysics.filter = PhysicsComponent.filter
 
 function DragPhysics:onAdd(e)
-    local t = love.math.newTransform()
+    local mat = mat4.identity()
     local physc = e[PhysicsComponent]
     
     local function getCenter() return physc.body:getWorldCenter() end
     local function setCenter(x, y)
         local body = physc.body
-        body:setPosition(
-            vec2.add(
-                vec2.sub(
-                    body:getPosition())(
-                    body:getWorldCenter()))(
-                x, y)
-        )
+        body:setPosition((vec2(x, y) + vec2(body:getPosition())
+            - vec2(body:getWorldCenter())):unpack())
     end
 
     local function getOffcenter()
-        return physc:applyTo(t:reset())
-            :scale(1 / self.editor:getCamera():getScale())
-            :transformPoint(controlScale, 0)
+        local cameraScale = self.editor.world:getPipeline().camera.scale
+        e[PhysicsComponent]:getTransform(
+            mat:identity():scale(mat, vec3(1/cameraScale)))
+        return (mat * vec3(controlScale, 0, 0)):unpack()
     end
     
     local function setOffcenter(x, y)
-        physc:applyTo(t:reset())
-        physc.body:setAngle(
-            lume.angle(vec2.pack(physc.body:getWorldCenter())(x, y)))
+        local cx, cy = physc.body:getWorldCenter()
+        physc.body:setAngle(lume.angle(cx, cy, x, y))
     end
-    
-    local camera = self.editor:getCamera()
-    local toScreen = camera:toScreenTransform()
-        :apply(e:getTransform())
-        :scale(1 / camera:getScale())
 
-    local ax, ay = toScreen:transformPoint(0, 0)
-    local center = self.editor.hc:circle(ax, ay, 4)
+    local center = self.editor.hc:circle(0, 0, 4)
     center.agent = DragAgent.newFromAccessors(self.editor, e, setCenter, getCenter)
     
-    local bx, by = toScreen:transformPoint(controlScale, 0)
-    local offcenter = self.editor.hc:circle(bx, by, 4)
+    local offcenter = self.editor.hc:circle(0, 0, 4)
     offcenter.agent = DragAgent.newFromAccessors(self.editor, e, setOffcenter, getOffcenter)
 
     self.shapes[e] = {
@@ -77,16 +67,17 @@ function DragPhysics:onRemove(e)
 end
 
 function DragPhysics:update(dt)
-    local camera = self.editor.world:getPipeline().camera
-    local screenTransform = camera:toScreenTransform()
-    local t = love.math.newTransform()
+    local camera = self.editor.world:getPipeline():getCameraMatrix()
+    local cameraScale = self.editor.world:getPipeline().camera.scale
+    local mat = mat4.identity()
     local ax, ay, bx, by, rot
     for _, e in ipairs(self.entities) do
-        e[PhysicsComponent]:applyTo(t:reset():apply(screenTransform))
-            :scale(1 / camera:getScale())
+        e[PhysicsComponent]:getTransform(
+            mat:identity():scale(mat, vec3(1/cameraScale)))
+        mat:mul(camera, mat)
 
-        self.shapes[e].center:moveTo(t:transformPoint(0, 0))
-        self.shapes[e].offcenter:moveTo(t:transformPoint(controlScale, 0))
+        self.shapes[e].center:moveTo((mat * vec3.zero):unpack())
+        self.shapes[e].offcenter:moveTo((mat * vec3(controlScale, 0, 0)):unpack())
     end
 end
 
@@ -94,17 +85,22 @@ function DragPhysics:draw(pipeline)
     love.graphics.setColor(1, 0, 0, 0.8)
     love.graphics.setLineWidth(1)
 
-    local tx = love.math.newTransform()
-    pipeline.camera:draw(function(l, t, w, h)
-        for _, e in ipairs(self.entities) do
-            love.graphics.push()
-            love.graphics.applyTransform(e[PhysicsComponent]:applyTo(tx:reset()))
-            love.graphics.scale(1 / pipeline.camera:getScale())
-            love.graphics.line(0, controlScale, 0, 0, controlScale, 0)
-            love.graphics.line(-csFrac8, csFrac3q, 0, controlScale, csFrac8, csFrac3q)
-            love.graphics.pop()
-        end
-    end)
+    local mat = mat4.identity()
+
+    local cameraScale = pipeline.camera:getScale()
+    pipeline:setViewTransform(pipeline:getCameraMatrix())
+
+    for _, e in ipairs(self.entities) do
+        pipeline:setModelTransform(
+            e[PhysicsComponent]:getTransform(
+                mat:identity():scale(mat, vec3(1/cameraScale))))
+
+        love.graphics.line(0, controlScale, 0, 0, controlScale, 0)
+        love.graphics.line(-csFrac8, csFrac3q, 0, controlScale, csFrac8, csFrac3q)
+    end
+
+    pipeline:setModelTransform()
+    pipeline:setViewTransform()
 end
 
---interactable.registerInteraction("droptune.interaction.DragPhysics", DragPhysics)
+interactable.registerInteraction("droptune.interaction.DragPhysics", DragPhysics)
