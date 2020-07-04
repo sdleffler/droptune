@@ -158,7 +158,7 @@ function interactable.draw(editor)
     editor.world:refresh()
     editor.interaction:draw(editor.world:getPipeline())
 
-    love.graphics.setLineWidth(1)
+    love.graphics.setLineWidth(2)
 
     local hc = editor.hc
     local shapes = hc:hash():shapes()

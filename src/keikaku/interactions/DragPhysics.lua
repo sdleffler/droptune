@@ -83,7 +83,7 @@ end
 
 function DragPhysics:draw(pipeline)
     love.graphics.setColor(1, 0, 0, 0.8)
-    love.graphics.setLineWidth(1)
+    love.graphics.setLineWidth(2)
 
     local mat = mat4.identity()
 

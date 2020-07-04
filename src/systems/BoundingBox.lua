@@ -31,7 +31,7 @@ do
 
         local world = self.world
 
-        function e.getBoundingBox(bb)
+        function e:getBoundingBox(bb)
             if #fs == 0 and not bb then
                 return bound3.new(vec3(-8, -8), vec3(8, 8))
             end

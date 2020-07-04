@@ -11,10 +11,10 @@ local plusz = vec3(0, 0, 1)
 local PositionComponent = Component:subtype({}, "droptune.components.Position")
 do
     function PositionComponent:init(x, y, rot, sx, sy, ox, oy)
-        self.position = vec3(x, y, 0)
+        self.position = vec3(x or 0, y or 0, 0)
         self.angle = angle or 0
-        self.scale = vec3(sx, sy, 1)
-        self.origin = vec3(ox, oy, 0)
+        self.scale = vec3(sx or 1, sy or 1, 1)
+        self.origin = vec3(ox or 0, oy or 0, 0)
     end
 
     function PositionComponent:getTransform(mat)

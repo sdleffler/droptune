@@ -34,8 +34,8 @@ function DragPosition:onAdd(e)
 
     do
         local function getCenter()
-            local p = e:applyTransformTo(mat:identity()) *
-                e:getBoundingBox():center()
+            local bb = e:getBoundingBox()
+            local p = e:getTransform(mat:identity()) * bb:center()
             return p.x, p.y
         end
         
@@ -47,7 +47,7 @@ function DragPosition:onAdd(e)
 
             local physc = e[PhysicsComponent]
             if physc then
-                physc:applyInverseTransformTo(mat)
+                physc:getInverseTransform(mat)
             end
 
             posc.position = mat * vec3(x, y, posc.position.z)
@@ -59,164 +59,122 @@ function DragPosition:onAdd(e)
         table.insert(shapes, shape)
     end
 
-    -- local function makeRotate(accessor)
-    --     local function getRotate()
-    --         return e:getTransform()
-    --             :transformPoint(accessor(e:getBoundingBox()))
-    --     end
+    local function makeRotate(accessor)
+        local function getRotate()
+            local bb = e:getBoundingBox()
+            local p = e:getTransform(mat:identity()) * accessor(bb)
+            return p.x, p.y
+        end
 
-    --     local function setRotate(x, y)
-    --         -- First, calculate and set the new rotation.
-    --         local cornerx, cornery = accessor(e:getBoundingBox())
-    --         local centerx, centery = aabb.center(e:getBoundingBox())
-    --         local worldcenterx, worldcentery = e:getTransform():transformPoint(centerx, centery)
+        local function setRotate(x, y)
+            local bb = e:getBoundingBox()
 
-    --         local worldangle =
-    --             math.atan2(y - worldcentery, x - worldcenterx) -
-    --             math.atan2((cornery - centery) * posc.sy, (cornerx - centerx) * posc.sx)
+            -- First, calculate and set the new rotation.
+            local corner = accessor(bb)
+            local center = bb:center()
+            local worldcenter = e:getTransform(mat:identity()) * center
 
-    --         posc.rot = worldangle
+            local worldangle =
+                math.atan2(y - worldcenter.y, x - worldcenter.x) -
+                math.atan2((corner.y - center.y) * posc.scale.y, (corner.x - center.x) * posc.scale.x)
 
-    --         -- print(localx, localy, cornerx, cornery, centerx, centery)
+            posc.angle = worldangle
 
-    --         -- posc.rot = lume.angle(worldcenterx, worldcentery, x, y) -
-    --         --     lume.angle(centerx, centery, cornerx, cornery)
+            -- print(localx, localy, cornerx, cornery, centerx, centery)
 
-    --         -- Now, after we rotate, we aren't guaranteed that the point
-    --         -- of rotation/the center of our AABB is 0, 0. So we need to
-    --         -- correct the translation so that the center is still the
-    --         -- center.
-    --         t:reset()
-    --             t:rotate(posc.rot)
-    --             t:scale(posc.sx, posc.sy)
-    --             t:translate(vec2.neg(aabb.center(e:getBoundingBox())))
-    --             t:scale(1/posc.sx, 1/posc.sy)
-    --             t:rotate(-posc.rot)
+            -- posc.rot = lume.angle(worldcenterx, worldcentery, x, y) -
+            --     lume.angle(centerx, centery, cornerx, cornery)
 
-    --         local physc = e[PhysicsComponent]
-    --         if physc then
-    --             physc:applyInverseTo(t)
-    --         end
+            -- Now, after we rotate, we aren't guaranteed that the point
+            -- of rotation/the center of our AABB is 0, 0. So we need to
+            -- correct the translation so that the center is still the
+            -- center.
 
-    --         posc.x, posc.y = t:transformPoint(worldcenterx, worldcentery)
-    --     end
+            mat
+                :identity()
+                :rotate(mat, -posc.angle, plusz)
+                :scale(mat, vec3(1/posc.scale.x, 1/posc.scale.y, 1/posc.scale.z))
+                :translate(mat, -center)
+                :scale(mat, posc.scale)
+                :rotate(mat, posc.angle, plusz)
 
-    --     local x, y = getRotate()
-    --     local shape = self.editor.hc:circle(x, y, 4)
-    --     shape.agent = DragAgent.newFromAccessors(self.editor, e, setRotate, getRotate)
-    --     table.insert(shapes, shape)
-    -- end
+            local physc = e[PhysicsComponent]
+            if physc then
+                physc:getInverseTransform(mat)
+            end
 
-    -- makeRotate(aabb.upperleft, "upperleft")
-    -- makeRotate(aabb.upperright, "upperright")
-    -- makeRotate(aabb.lowerright, "lowerright")
-    -- makeRotate(aabb.lowerleft, "lowerleft")
+            posc.x, posc.y = (mat * worldcenter):unpack()
+        end
 
-    -- local function makeScale(accessor)
-    --     local function getScale()
-    --         return e:getTransform()
-    --             :transformPoint(accessor(e:getBoundingBox()))
-    --     end
+        local x, y = getRotate()
+        local shape = self.editor.hc:circle(x, y, 4)
+        shape.agent = DragAgent.newFromAccessors(self.editor, e, setRotate, getRotate)
+        table.insert(shapes, shape)
+    end
 
-    --     local function setScale(x, y)
-    --         -- First, calculate and set the new scale.
-    --         local middlex, middley = accessor(e:getBoundingBox())
-    --         local centerx, centery = aabb.center(e:getBoundingBox())
-    --         local actualx, actualy = e:getTransform()
-    --             :transformPoint(aabb.center(e:getBoundingBox()))
+    makeRotate(function(bb) return vec3(bb.min.x, bb.min.y, 0) end)
+    makeRotate(function(bb) return vec3(bb.max.x, bb.min.y, 0) end)
+    makeRotate(function(bb) return vec3(bb.max.x, bb.max.y, 0) end)
+    makeRotate(function(bb) return vec3(bb.min.x, bb.max.y, 0) end)
 
-    --         local dist = vec2.scalarprojection(
-    --             x - actualx, y - actualy)(
-    --             vec2.sub(
-    --                 e:getTransform():transformPoint(middlex, middley))(
-    --                 actualx, actualy))
+    local function makeScale(accessor)
+        local function getScale()
+            local bb = e:getBoundingBox()
+            local p = e:getTransform(mat:identity()) * accessor(bb)
+            return p.x, p.y
+        end
 
-    --         if middlex - centerx ~= 0 then
-    --             posc.sx = math.abs(dist / (middlex - centerx))
-    --         end
+        local function setScale(x, y)
+            local bb = e:getBoundingBox()
 
-    --         if middley - centery ~= 0 then
-    --             posc.sy = math.abs(dist / (middley - centery))
-    --         end
+            -- First, calculate and set the new scale.
+            local middle = accessor(bb)
+            local center = bb:center()
+            local worldcenter = e:getTransform(mat:identity()) * center
 
-    --         -- Now, after we rotate, we aren't guaranteed that the point
-    --         -- of rotation/the center of our AABB is 0, 0. So we need to
-    --         -- correct the translation so that the center is still the
-    --         -- center.
-    --         t:reset()
-    --             t:rotate(posc.rot)
-    --             t:scale(posc.sx, posc.sy)
-    --             t:translate(vec2.neg(aabb.center(e:getBoundingBox())))
-    --             t:scale(1/posc.sx, 1/posc.sy)
-    --             t:rotate(-posc.rot)
+            local a = vec3(x - worldcenter.x, y - worldcenter.y, 0)
+            local b = (e:getTransform() * middle) - worldcenter
+            local dist = a:dot(b) / b:len()
 
-    --         local physc = e[PhysicsComponent]
-    --         if physc then
-    --             physc:applyInverseTo(t)
-    --         end
+            if middle.x - center.x ~= 0 then
+                posc.scale.x = math.abs(dist / (middle.x - center.x))
+            end
 
-    --         posc.x, posc.y = t:transformPoint(actualx, actualy)
-    --     end
+            if middle.y - center.y ~= 0 then
+                posc.scale.y = math.abs(dist / (middle.y - center.y))
+            end
 
-    --     local x, y = getScale()
-    --     local shape = self.editor.hc:circle(x, y, 4)
-    --     shape.agent = DragAgent.newFromAccessors(self.editor, e, setScale, getScale)
-    --     table.insert(shapes, shape)
-    -- end
+            -- Now, after we scale, we aren't guaranteed that the center
+            -- of our AABB is 0, 0. So we need to correct the translation
+            -- so that the center is still the center.
+            mat
+                :identity()
+                :rotate(mat, -posc.angle, plusz)
+                :scale(mat, vec3(1/posc.scale.x, 1/posc.scale.y, 1/posc.scale.z))
+                :translate(mat, -center)
+                :scale(mat, posc.scale)
+                :rotate(mat, posc.angle, plusz)
 
-    -- makeScale(aabb.uppermiddle)
-    -- makeScale(aabb.middleright)
-    -- makeScale(aabb.lowermiddle)
-    -- makeScale(aabb.middleleft)
+            local physc = e[PhysicsComponent]
+            if physc then
+                physc:getInverseTransform(mat)
+            end
+
+            posc.x, posc.y = (mat * worldcenter):unpack()
+        end
+
+        local x, y = getScale()
+        local shape = self.editor.hc:circle(x, y, 4)
+        shape.agent = DragAgent.newFromAccessors(self.editor, e, setScale, getScale)
+        table.insert(shapes, shape)
+    end
+
+    makeScale(function(bb) return vec3(bb:center().x, bb.min.y, 0) end)
+    makeScale(function(bb) return vec3(bb.max.x, bb:center().y, 0) end)
+    makeScale(function(bb) return vec3(bb:center().x, bb.max.y, 0) end)
+    makeScale(function(bb) return vec3(bb.min.x, bb:center().y, 0) end)
 
     self.shapes[e] = shapes
-
-    -- local function getOffcenter() return e:getTransform():transformPoint(controlScale, 0) end
-    -- local function setOffcenter(x, y)
-    --     t:reset()
-    --     local physc = e[PhysicsComponent]
-    --     if physc then
-    --         physc:applyInverseTo(t)
-    --     end
-
-    --     posc.rot = lume.angle(posc.x, posc.y, t:transformPoint(x, y))
-    -- end
-
-    -- local function getScale() return e:getTransform():transformPoint(csNormalized, csNormalized) end
-    -- local function setScale(x, y)
-    --     t:reset()
-    --     local physc = e[PhysicsComponent]
-    --     if physc then
-    --         physc:applyInverseTo(t)
-    --     end
-        
-    --     local scale = lume.distance(posc.x, posc.y, t:transformPoint(x, y)) / controlScale
-    --     posc.sx = scale
-    --     posc.sy = scale
-    -- end
-
-    -- local camera = self.editor:getCamera()
-    -- local toScreen = camera:toScreenTransform()
-    --     :apply(e:getTransform())
-    --     :scale(1 / camera:getScale())
-
-    -- local ax, ay = toScreen:transformPoint(0, 0)
-    -- local center = self.editor.hc:circle(ax, ay, 4)
-    -- center.agent = DragAgent.newFromAccessors(self.editor, e, setCenter, getCenter)
-    
-    -- local bx, by = toScreen:transformPoint(controlScale, 0)
-    -- local offcenter = self.editor.hc:circle(bx, by, 4)
-    -- offcenter.agent = DragAgent.newFromAccessors(self.editor, e, setOffcenter, getOffcenter)
-
-    -- local cx, cy = toScreen:transformPoint(csNormalized, csNormalized)
-    -- local scale = self.editor.hc:circle(cx, cy, 4)
-    -- scale.agent = DragAgent.newFromAccessors(self.editor, e, setScale, getScale)
-
-    -- self.shapes[e] = {
-    --     center = center,
-    --     offcenter = offcenter,
-    --     scale = scale,
-    -- }
 end
 
 function DragPosition:onRemove(e)
@@ -227,10 +185,6 @@ function DragPosition:onRemove(e)
     for _, s in table do
         hc:remove(s)
     end
-
-    -- self.editor.hc:remove(table.center)
-    -- self.editor.hc:remove(table.offcenter)
-    -- self.editor.hc:remove(table.scale)
 end
 
 function DragPosition:update(dt)
@@ -240,41 +194,32 @@ function DragPosition:update(dt)
             s:moveTo(camera:toScreen(s.agent.get()))
         end
     end
-    -- local camera = self.editor.world:getPipeline().camera
-    -- local screenTransform = camera:toScreenTransform()
-    -- local t = love.math.newTransform()
-    -- local ax, ay, bx, by, rot
-    -- for _, e in ipairs(self.entities) do
-    --     t:reset()
-    --         :apply(screenTransform)
-    --         :apply(e:getTransform())
-    --         :scale(1 / camera:getScale())
-
-    --     self.shapes[e].center:moveTo(t:transformPoint(0, 0))
-    --     self.shapes[e].offcenter:moveTo(t:transformPoint(controlScale, 0))
-    --     self.shapes[e].scale:moveTo(t:transformPoint(csNormalized, csNormalized))
-    -- end
 end
 
 function DragPosition:draw(pipeline)
     love.graphics.setColor(1, 0, 0, 0.8)
-    love.graphics.setLineWidth(1 / pipeline.camera:getScale())
+    love.graphics.setLineStyle("rough")
 
-    pipeline.camera:draw(function(_l, _t, _w, _h)
-        pipeline:setShader()
-        for _, e in ipairs(self.entities) do
-            local bounds = e:getBoundingBox()
-            local min = bounds.min
-            local size = bounds:size()
+    local mat = mat4()
 
-            love.graphics.push()
-            pipeline:sendModelTransform(e:applyTransformTo(mat4.identity()))
-            love.graphics.rectangle("line", min.x, min.y, size.x, size.y)
-            -- love.graphics.line(0, controlScale, 0, 0, controlScale, 0)
-            -- love.graphics.line(-csFrac8, csFrac3q, 0, controlScale, csFrac8, csFrac3q)
-            love.graphics.pop()
-        end
-    end)
+    pipeline:setShader()
+    pipeline:setViewTransform(pipeline:getCameraMatrix())
+    for _, e in ipairs(self.entities) do
+        local bounds = e:getBoundingBox()
+        local min = bounds.min
+        local size = bounds:size()
+
+        love.graphics.push()
+        pipeline:setModelTransform(e:getTransform(mat:identity()))
+
+        love.graphics.setLineWidth(4 / (pipeline.camera:getScale() * e[PositionComponent].scale:len()))
+        love.graphics.rectangle("line", min.x, min.y, size.x, size.y)
+        love.graphics.line(0, controlScale, 0, 0, controlScale, 0)
+        love.graphics.line(-csFrac8, csFrac3q, 0, controlScale, csFrac8, csFrac3q)
+        love.graphics.pop()
+    end
+    pipeline:setModelTransform()
+    pipeline:setViewTransform()
 end
 
 interactable.registerInteraction("droptune.interaction.DragPosition", DragPosition)
