@@ -17,3 +17,6 @@
 [submodule "src/lib/cpml"]
 	path = src/lib/cpml
 	url = https://github.com/sdleffler/cpml
+[submodule "src/lib/lua-poly2tri"]
+	path = src/lib/lua-poly2tri
+	url = https://github.com/sdleffler/lua-poly2tri
