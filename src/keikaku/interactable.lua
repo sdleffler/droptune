@@ -125,11 +125,13 @@ function interactable.update(dt, editor)
         interactable.init(editor)
     end
 
-    editor.interaction:update(dt)
+    if editor.overlay_enabled then
+        editor.interaction:update(dt)
+    end
 
     local hovered = editor.hovered
     if editor.Slab.IsVoidHovered() then
-        if not (editor.tool and editor.tool:overrideNonToolInteractions()) then
+        if editor.overlay_enabled and not (editor.tool and editor.tool:overrideNonToolInteractions()) then
             local shapes = editor.hc:shapesAt(editor.mousestate:getMousePosition())
 
             for i = #hovered, 1, -1 do
@@ -144,6 +146,8 @@ function interactable.update(dt, editor)
             for shape in pairs(shapes) do
                 table.insert(hovered, shape)
             end
+        else
+            lume.clear(hovered)
         end
 
         if #hovered == 0 then

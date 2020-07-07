@@ -49,6 +49,14 @@ function menu.worldMenu(editor, dt)
 
         Slab.EndMenu()
     end
+
+    if Slab.BeginMenu("View") then
+        if Slab.MenuItemChecked("Show overlay", editor.overlay_enabled) then
+            editor.overlay_enabled = not editor.overlay_enabled
+        end
+
+        Slab.EndMenu()
+    end
 end
 
 function menu.updateMainMenuBar(editor, dt)

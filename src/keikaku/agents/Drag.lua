@@ -5,14 +5,16 @@ local DragAgent = Tool:subtype()
 do
     local init = {}
 
-    function init.mousepressed(agent, x, y, button)
-        if button == agent.button then
+    function init.mousemoved(agent, x, y, ...)
+        if agent.editor.mousestate:isMouseDown(1) then
             agent:pushState("dragging")
 
             local start = agent.start
             if start then
-                start(x, y, button)
+                start(x, y)
             end
+
+            agent:message("mousemoved", x, y, ...)
         end
     end
 
@@ -38,7 +40,7 @@ do
             mousereleased(x, y, button)
         end
 
-        if button == agent.button then
+        if button == 1 then
             agent:popState()
             
             local finish = agent.finish
@@ -48,7 +50,7 @@ do
         end
     end
 
-    function DragAgent:init(opts)
+    function DragAgent:init(editor, opts)
         Tool.init(self, {
             init = State:new(init),
             dragging = State:new(dragging),
@@ -59,8 +61,8 @@ do
         self.mousereleased = opts.mousereleased
         self.start = opts.start
         self.finish = opts.finish
-        self.button = opts.button or 1
         self.entity = opts.entity
+        self.editor = editor
     end
 
     function DragAgent.newFromAccessors(editor, entity, set, get)
@@ -77,7 +79,7 @@ do
             offsetX, offsetY = sx - x, sy - y
         end
 
-        local agent = DragAgent:new({
+        local agent = DragAgent:new(editor, {
             start = start,
             mousemoved = update,
             finish = update,

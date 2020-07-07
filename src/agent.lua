@@ -15,12 +15,12 @@ do
         end
     end
 
-    function State.push(agent)
-        agent:message("enter")
+    function State.push(agent, ...)
+        agent:message("enter", ...)
     end
 
-    function State.pop(agent)
-        agent:message("exit")
+    function State.pop(agent, ...)
+        agent:message("exit", ...)
     end
 end
 
@@ -90,7 +90,7 @@ do
 
     function Agent:pushState(state, ...)
         assert(self.states[state], "invalid state")
-        self:message("exit")
+        self:message("exit", ...)
 
         local stack = self.stack
         stack[#stack + 1] = state
@@ -106,7 +106,7 @@ do
         stack[#stack] = nil
 
         self.elapsed = 0
-        self:message("enter")
+        self:message("enter", ...)
     end
 
     function Agent:setState(state, ...)

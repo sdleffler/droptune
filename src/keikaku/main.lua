@@ -84,15 +84,22 @@ do
         end
 
         if agent then
-            local x, y = editor.mousestate:getMousePosition()
+            local mousestate = editor.mousestate
 
-            agent:message("mousemoved", x, y, editor.mousestate:getMouseDelta())
-            agent:message("wheelmoved", editor.mousestate:getWheelMoved())
+            local x, y = mousestate:getMousePosition()
+
+            if mousestate:isMouseMoving() then
+                agent:message("mousemoved", x, y, mousestate:getMouseDelta())
+            end
+
+            if mousestate:isWheelMoving() then
+                agent:message("wheelmoved", mousestate:getWheelMoved())
+            end
 
             for i = 1, 3 do
-                if editor.mousestate:isMousePressed(i) then
+                if mousestate:isMousePressed(i) then
                     agent:message("mousepressed", x, y, i)
-                elseif editor.mousestate:isMouseReleased(i) then
+                elseif mousestate:isMouseReleased(i) then
                     agent:message("mousereleased", x, y, i)
                 end
             end
@@ -100,12 +107,22 @@ do
             agent:update(dt, editor)
 
             if agent:getState() ~= "init" then
-                self:pushState("interacting")
+                self:pushState("interacting", editor)
+            elseif mousestate:isMousePressed(1) then
+                lume.clear(editor.selected)
+                
+                -- The "hovered" interactable may be from an entity or
+                -- it may be a tool. If it's from a tool, then entity
+                -- will be nil.
+                local e = agent.entity
+                if e then
+                    editor.selected[agent.entity] = true
+                end
             end
         end
 
         if love.keyboard.isDown("lshift") then
-            self:pushState("selecting")
+            self:pushState("selecting", editor)
         end
     end
 
@@ -115,12 +132,12 @@ do
                 editor.selected[editor.active.entity] = true
             end
 
-            self:pushState("contextmenu")
+            self:pushState("contextmenu", editor)
         end
     end
 
     function FreeState:runWorld(editor)
-        self:setState("running")
+        self:setState("running", editor)
     end
 end
 
@@ -138,7 +155,7 @@ do
     RunningState.updateInteractable = FreeState.updateInteractable
 
     function RunningState:pauseWorld(editor)
-        self:setState("init")
+        self:setState("init", editor)
     end
 
     function RunningState:updateWorld(dt, editor)
@@ -174,14 +191,22 @@ do
         end
 
         if not love.keyboard.isDown("lshift") then
-            self:popState()
+            self:popState(editor)
         end
     end
 
     function SelectingState:setContextMenuOpen(editor, flag)
         if flag then
-            self:pushState("contextmenu")
+            self:pushState("contextmenu", editor)
         end
+    end
+
+    function SelectingState:enter(editor)
+        love.mouse.setCursor(editor.hand_cursor)
+    end
+
+    function SelectingState:exit(editor)
+        love.mouse.setCursor(editor.arrow_cursor)
     end
 end
 
@@ -199,14 +224,21 @@ do
 
     function InteractingState:update(dt, editor)
         local agent = editor.active
-        local x, y = editor.mousestate:getMousePosition()
-        agent:message("mousemoved", x, y, editor.mousestate:getMouseDelta())
-        agent:message("wheelmoved", editor.mousestate:getWheelMoved())
+        local mousestate = editor.mousestate
+        local x, y = mousestate:getMousePosition()
+
+        if mousestate:isMouseMoving() then
+            agent:message("mousemoved", x, y, mousestate:getMouseDelta())
+        end
+
+        if mousestate:isWheelMoving() then
+            agent:message("wheelmoved", mousestate:getWheelMoved())
+        end
 
         for i = 1, 3 do
-            if editor.mousestate:isMousePressed(i) then
+            if mousestate:isMousePressed(i) then
                 agent:message("mousepressed", x, y, i)
-            elseif editor.mousestate:isMouseReleased(i) then
+            elseif mousestate:isMouseReleased(i) then
                 agent:message("mousereleased", x, y, i)
             end
         end
@@ -327,23 +359,50 @@ function main.init(editor)
         mousePos = {0, 0},
         mousePosOld = {0, 0},
         mouseWheel = {0, 0},
+
         isMousePressed = function(self, button)
             return not self.mouseDownOld[button] and self.mouseDown[button]
         end,
+
         isMouseReleased = function(self, button)
             return self.mouseDownOld[button] and not self.mouseDown[button]
         end,
-        getMousePosition = function(self)
-            return unpack(self.mousePos)
+
+        isMouseDown = function(self, button)
+            return self.mouseDown[button]
         end,
+
+        isMouseMoving = function(self)
+            return self.mousePos[1] ~= self.mousePosOld[1] or
+                self.mousePos[2] ~= self.mousePosOld[2]
+        end,
+
+        isWheelMoving = function(self)
+            return self.mouseWheel[1] ~= 0 or self.mouseWheel[2] ~= 0
+        end,
+
+        getMousePosition = function(self)
+            -- If we return the new mouse position here then we get
+            -- some odd behavior w/ interactions that only switch to
+            -- their active state when the mouse begins moving (the Look
+            -- tool, for example)
+            return unpack(self.mousePosOld)
+        end,
+
         getMouseDelta = function(self)
             return self.mousePos[1] - self.mousePosOld[1],
                 self.mousePos[2] - self.mousePosOld[2]
         end,
+
         getWheelMoved = function(self)
             return unpack(self.mouseWheel)
         end,
     }
+
+    editor.overlay_enabled = true
+
+    editor.hand_cursor = love.mouse.getSystemCursor("hand")
+    editor.arrow_cursor = love.mouse.getSystemCursor("arrow")
 end
 
 function main.deinit(editor)
@@ -424,7 +483,11 @@ function main.draw(scenestack, editor)
     local interactable = dtrequire("keikaku.interactable")
 
     editor.world:draw()
-    interactable.draw(editor)
+
+    if editor.overlay_enabled then
+        interactable.draw(editor)
+    end
+
     main.drawSlab(editor)
 end
 

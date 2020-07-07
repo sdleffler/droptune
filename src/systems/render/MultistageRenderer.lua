@@ -10,15 +10,15 @@ do
         end
     end
 
-    function MultistageRenderer:setup(pipeline) end
-    function MultistageRenderer:teardown(pipeline) end
+    function MultistageRenderer:setup(pipeline, ...) end
+    function MultistageRenderer:teardown(pipeline, ...) end
 
-    function MultistageRenderer:draw(pipeline)
-        self:setup(pipeline)
+    function MultistageRenderer:draw(pipeline, ...)
+        self:setup(pipeline, ...)
         for _, child in ipairs(self.children) do
-            child:draw(pipeline)
+            child:draw(pipeline, ...)
         end
-        self:teardown(pipeline)
+        self:teardown(pipeline, ...)
     end
 
     function MultistageRenderer:onAddToWorld(world)

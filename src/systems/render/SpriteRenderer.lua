@@ -14,11 +14,10 @@ do
         return e[SpriteComponent] or e[AnimatedSpriteComponent]
     end
 
-    function SpriteRenderer:draw(pipeline)
+    function SpriteRenderer:draw(pipeline, ...)
         local transform = mat4.identity()
         local model = mat4.identity()
     
-        pipeline:setShader()
         pipeline:setViewTransform(pipeline:getCameraMatrix())
         for _, e in ipairs(self.entities) do
             e:getTransform(transform:identity())
@@ -39,8 +38,6 @@ do
                 love.graphics.draw(sprite.image)
             end
         end
-        pipeline:setModelTransform()
-        pipeline:setViewTransform()
     end
 end
 

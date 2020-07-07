@@ -1,7 +1,8 @@
 local lume = dtrequire("lib.lume")
 local ecs = dtrequire("ecs")
 local hooks = dtrequire("editor.hooks")
-local _, Component = ecs.common()
+local Entity, Component = ecs.common()
+local prototype = dtrequire("prototype")
 
 local cpml = dtrequire("lib.cpml")
 local mat4, vec3 = cpml.mat4, cpml.vec3
@@ -10,7 +11,16 @@ local plusz = vec3(0, 0, 1)
 
 local PositionComponent = Component:subtype({}, "droptune.components.Position")
 do
-    function PositionComponent:init(x, y, rot, sx, sy, ox, oy)
+    function PositionComponent:init(...)
+        local parent, x, y, rot, sx, sy, ox, oy
+
+        if prototype.is(select(1, ...), Entity) then
+            parent, x, y, rot, sx, sy, ox, oy = ...
+        else
+            x, y, rot, sx, sy, ox, oy = ...
+        end
+
+        self.parent = parent
         self.position = vec3(x or 0, y or 0, 0)
         self.angle = angle or 0
         self.scale = vec3(sx or 1, sy or 1, 1)
@@ -18,20 +28,32 @@ do
     end
 
     function PositionComponent:getTransform(mat)
-        return mat
+        mat
             :translate(mat, self.origin)
             :scale(mat, self.scale)
             :rotate(mat, self.angle, plusz)
             :translate(mat, self.position)
+
+        local parent = self.parent
+        if parent then
+            parent:getTransform(mat)
+        end
+
+        return mat
     end
 
     function PositionComponent:getInverseTransform(mat)
+        local parent = self.parent
+        if parent then
+            parent:getInverseTransform(mat)
+        end
+
         return mat
             :translate(mat, -self.position)
             :rotate(mat, -self.angle, plusz)
             :scale(mat, vec3(1/self.scale.x, 1/self.scale.y, 1/self.scale.z))
             :translate(mat, -self.origin)
-        end
+    end
 end
 
 -- hooks.registerComponent(PositionComponent, {
