@@ -43,6 +43,12 @@ if not _keikaku_interactable_G then
         function Tool:getName()
             return self:getShortPrototypeName()
         end
+
+        function Tool:saveConfig()
+            return {}
+        end
+
+        function Tool:loadConfig() end
     end
 
     globals.registry = {}

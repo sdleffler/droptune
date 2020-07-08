@@ -17,7 +17,7 @@ function menu.worldMenu(editor, dt)
 
         Slab.Separator()
 
-        if Slab.MenuItem("Save") then
+        if editor.current_file and Slab.MenuItem("Save") then
             editor.agent:message("saveWorld", editor)
         end
 
@@ -68,15 +68,12 @@ function menu.updateMainMenuBar(editor, dt)
 end
 
 function menu.updateContextMenu(editor, dt)
-    local Look = dtrequire("keikaku.tools.Look")
-    local Instantiate = dtrequire("keikaku.tools.Instantiate")
-
     local Slab = editor.Slab
     local begin = Slab.BeginContextMenuWindow()
     editor.agent:message("setContextMenuOpen", editor, begin)
     if begin then
         if Slab.BeginMenu("Tool") then
-            for name, tool in pairs(dtrequire("keikaku.tools")) do
+            for name, tool in pairs(editor.toolcache) do
                 if Slab.MenuItemChecked(name, prototype.is(editor.tool, tool)) then
                     dtrequire("keikaku.main").setTool(editor, name)
                 end

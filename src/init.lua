@@ -139,6 +139,7 @@ local status, err = xpcall(function()
     droptune.lurker = dtrequire("lib.lurker")
     droptune.peachy = dtrequire("lib.peachy")
     droptune.poly2tri = assert(package.loadlib(DROPTUNE_SRC .. "lib/poly2tri.dll", "luaopen_poly2tri"))()
+    droptune.serpent = dtrequire("lib.serpent")
     droptune.tiny = dtrequire("lib.tiny")
 end, debug.traceback)
 

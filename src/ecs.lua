@@ -5,6 +5,9 @@ local tiny = dtrequire("lib.tiny")
 
 local ecs = {}
 
+local cpml = dtrequire("lib.cpml")
+local mat4, vec3 = cpml.mat4, cpml.vec3
+
 local Visitor = prototype.newInterface {
     entry = function(self, k, v, default) end,
 
@@ -257,8 +260,11 @@ do
                 w(string.format("entityid(%d)", index[value]))
             elseif type(value) == "table" or type(value) == "function" then
                 wtable(value)
+            elseif vec3.is_vec3(value) then
+                w(string.format("vec3(%f, %f, %f)", value.x, value.y, value.z))
             else
-                error(type(value))
+                print("warning: skipping serialization of ", type(value), " (serializing as nil)")
+                w(tostring(nil))
             end
         end
 
@@ -382,6 +388,10 @@ do
             coroutine = lume.clone(coroutine),
             math = lume.merge(math, love.math),
             table = lume.clone(table),
+
+            vec3 = cpml.vec3.new,
+            mat4 = cpml.mat4.new,
+            bound3 = cpml.bound3.new,
         }
 
         return env
@@ -432,6 +442,18 @@ do
 
     function World:deserializeEntities(serialized, ...)
         return self:instantiate(serialized, nil, ...)
+    end
+
+    function World:saveToFile(filename)
+        local serialized = ""
+        self:serializeEntities(function(data)
+            serialized = serialized .. data
+        end)
+
+        local file = assert(love.filesystem.newFile(filename, "w"))
+        assert(file:write(serialized))
+        assert(file:flush())
+        assert(file:close())
     end
 end
 

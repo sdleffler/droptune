@@ -41,9 +41,11 @@ function DragPosition:onAdd(e)
         
         local function setCenter(x, y)
             mat:identity()
-                mat:rotate(mat, posc.angle, plusz)
-                mat:translate(mat, -e:getBoundingBox():center())
                 mat:rotate(mat, -posc.angle, plusz)
+                mat:scale(mat, vec3(1/posc.scale.x, 1/posc.scale.y, 1/posc.scale.z))
+                mat:translate(mat, -e:getBoundingBox():center())
+                mat:scale(mat, posc.scale)
+                mat:rotate(mat, posc.angle, plusz)
 
             local physc = e[PhysicsComponent]
             if physc then
@@ -182,7 +184,7 @@ function DragPosition:onRemove(e)
     self.shapes[e] = nil
 
     local hc = self.editor.hc
-    for _, s in table do
+    for _, s in ipairs(table) do
         hc:remove(s)
     end
 end

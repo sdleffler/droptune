@@ -1,9 +1,13 @@
 local HC = dtrequire("lib.HC")
 local lume = dtrequire("lib.lume")
+local serpent = dtrequire("lib.serpent")
 
 local Agent, State = dtrequire("agent").common()
 local ecs = dtrequire("ecs")
 local prototype = dtrequire("prototype")
+local resource = dtrequire("resource")
+
+local main = {}
 
 local IdPool = prototype.new()
 do
@@ -76,7 +80,7 @@ do
     function FreeState:update(dt, editor)
         local hovered = editor.hovered
         local agent
-        if #hovered == 1 then
+        if #hovered > 0 then
             agent = hovered[1].agent
             editor.active = agent
         else
@@ -138,6 +142,19 @@ do
 
     function FreeState:runWorld(editor)
         self:setState("running", editor)
+    end
+
+    function FreeState:saveWorld(editor)
+        editor.world:saveToFile(editor.current_file)
+        main.saveWorldConfig(editor)
+    end
+
+    function FreeState:saveWorldAs(editor)
+        self:pushState("save")
+    end
+
+    function FreeState:openWorld(editor)
+        self:pushState("open")
     end
 end
 
@@ -319,17 +336,113 @@ do
     function ConfirmState:setContextMenuOpen(flag) end
 end
 
-local main = {}
+local OpenState = FreeState:subtype()
+do
+    function OpenState:updateInteractable(dt, editor) end
 
-function main.setTool(editor, name)
-    local cached = editor.toolcache[name]
-    if not cached then
-        cached = dtrequire("keikaku.tools")[name]:new(editor)
-        editor.toolcache[name] = cached
+    function OpenState:update(dt, editor)
+        local Slab = editor.Slab
+        
+        local result = Slab.FileDialog({
+            AllowMultiSelect = false,
+            Directory = love.filesystem.getSaveDirectory(),
+            Type = "openfile",
+            Filters = {
+                { "*.lua", "Lua scripts" },
+            },
+        })
+
+        if result.Button ~= "" then
+            local filepath = result.Files[1]
+            if result.Button == "OK" and filepath then
+                local first, last = filepath:find(love.filesystem.getSaveDirectory(), 1, true)
+                if not first then
+                    local title = "Failed to open file"
+                    local msg = string.format(
+                        "Could not read file `%s` (can only open files in \
+                        the LOVE save directory)", filepath)
+                    self:pushState("confirm", title, msg, {
+                        ["Ok"] = function() end,
+                    })
+                else
+                    local sanitized = filepath:sub(last+2)
+                    editor.world:clearEntities()
+                    editor.world:deserializeEntities(assert(love.filesystem.read(sanitized)))
+                    editor.current_file = sanitized
+                    main.loadWorldConfig(editor)
+                    self:popState()
+                end
+            else
+                self:popState()
+            end
+        end
     end
 
-    if cached then
-        editor.tool = cached
+    function OpenState:setContextMenuOpen(flag) end
+end
+
+local SaveState = FreeState:subtype()
+do
+    function SaveState:updateInteractable(dt, editor) end
+
+    function SaveState:update(dt, editor)
+        local Slab = editor.Slab
+        
+        local result = Slab.FileDialog({
+            AllowMultiSelect = false,
+            Directory = love.filesystem.getSaveDirectory(),
+            Type = "savefile",
+            Filters = {
+                { "*.lua", "Lua scripts" },
+            },
+        })
+
+        if result.Button ~= "" then
+            local filepath = result.Files[1]
+            if result.Button == "OK" and filepath then
+                local first, last = filepath:find(love.filesystem.getSaveDirectory(), 1, true)
+                if not first then
+                    local msg = string.format(
+                        "Could not write file `%s` (can only open files in \
+                        the LOVE save directory)", filepath)
+                    self:pushState("confirm", "Failed to write file", msg, {
+                        ["Ok"] = function() end,
+                    })
+                else
+                    local sanitized = filepath:sub(last+2)
+                    editor.world:saveToFile(sanitized)
+                    editor.current_file = sanitized
+                    main.saveWorldConfig(editor)
+                    self:popState(editor)
+                end
+            else
+                self:popState(editor)
+            end
+        end
+    end
+
+    function SaveState:setContextMenuOpen(flag) end
+end
+
+function main.getTool(editor, name)
+    local cached = editor.toolcache[name]
+    if not cached then
+        local thunk = resource.get(name)
+        if not thunk then
+            print("could not open tool", name)
+            return
+        end
+
+        cached = resource.get(name)():new(editor)
+        editor.toolcache[name] = cached
+    end
+    return cached
+end
+
+function main.setTool(editor, name)
+    local tool = main.getTool(editor, name)
+    if tool then
+        editor.tool = tool
     end
 end
 
@@ -342,10 +455,12 @@ function main.init(editor)
         interacting = InteractingState:new(),
         contextmenu = ContextMenuState:new(),
         confirm = ConfirmState:new(),
+        save = SaveState:new(),
+        open = OpenState:new(),
     })
 
     editor.toolcache = {}
-    main.setTool(editor, "keikaku.tools.Look")
+    main.setTool(editor, "droptune.keikaku.tools.Look")
 
     editor.selected = setmetatable({}, {__mode = "k"})
 
@@ -403,6 +518,8 @@ function main.init(editor)
 
     editor.hand_cursor = love.mouse.getSystemCursor("hand")
     editor.arrow_cursor = love.mouse.getSystemCursor("arrow")
+
+    main.loadConfig(editor)
 end
 
 function main.deinit(editor)
@@ -504,7 +621,103 @@ function main.message(editor, msg, ...)
 end
 
 function main.quit(editor)
+    main.saveConfig(editor)
+
     return false
+end
+
+function main.saveConfig(editor)
+    local tools = {}
+    for name, tool in pairs(editor.toolcache) do
+        tools[name] = tool:saveConfig(editor)
+    end
+
+    local config = {
+        current_tool = editor.tool:getName(),
+        tools = tools,
+        current_file = editor.current_file,
+    }
+
+    local serialized = serpent.block(config)
+    assert(love.filesystem.write("editor.conf", serialized))
+end
+
+function main.loadConfig(editor)
+    local serialized = love.filesystem.read("editor.conf")
+
+    if not serialized then
+        return main.defaultConfig
+    end
+
+    local ok, res = serpent.load(serialized)
+    assert(ok)
+
+    local config = res
+    
+    if config.tools then
+        for name, config in pairs(config.tools) do
+            main.getTool(editor, name):loadConfig(config)
+        end
+    end
+
+    if config.current_tool then
+        main.setTool(editor, config.current_tool)
+    end
+
+    if config.current_file then
+        editor.world:clearEntities()
+
+        local res, err = love.filesystem.read(config.current_file)
+        
+        if res then
+            editor.world:deserializeEntities(res)
+            editor.current_file = config.current_file
+            main.loadWorldConfig(editor)
+        end
+    end
+end
+
+function main.saveWorldConfig(editor)
+    local tools = {}
+    for name, tool in pairs(editor.toolcache) do
+        tools[name] = tool:saveConfig(editor)
+    end
+
+    local config = {
+        overlay_enabled = editor.overlay_enabled,
+        current_tool = editor.tool:getName(),
+        tools = tools,
+    }
+
+    local conf_path = editor.current_file .. ".conf"
+    local serialized = serpent.block(config)
+    assert(love.filesystem.write(conf_path, serialized))
+end
+
+function main.loadWorldConfig(editor)
+    local conf_path = editor.current_file .. ".conf"
+    local serialized = love.filesystem.read(conf_path)
+
+    if not serialized then
+        return
+    end
+
+    local ok, res = serpent.load(serialized)
+    assert(ok)
+
+    local config = res
+
+    editor.overlay_enabled = config.overlay_enabled
+    
+    if config.tools then
+        for name, config in pairs(config.tools) do
+            main.getTool(editor, name):loadConfig(config)
+        end
+    end
+
+    if config.current_tool then
+        main.setTool(editor, config.current_tool)
+    end
 end
 
 return main

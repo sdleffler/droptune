@@ -1,7 +1,7 @@
 local Agent, State = dtrequire("agent").common()
 local Tool = dtrequire("keikaku.interactable").Tool
 
-local Look = Tool:subtype()
+local Look = Tool:subtype("droptune.keikaku.tools.Look")
 do
     local init = {}
     do
@@ -9,13 +9,18 @@ do
             local camera = self.editor:getCamera()
             local scale = camera:getScale()
             local dscale = y * 0.1
+
             camera:setScale(scale + dscale)
+
             local mx, my = camera:toWorld(self.editor.mousestate:getMousePosition())
             local cx, cy = camera:getPosition()
+
             camera:setPosition(
                 cx + (mx - cx) * dscale,
                 cy + (my - cy) * dscale
             )
+
+            self:updateConfig()
         end
 
         -- Switch to the panning state only when the mouse is moved while
@@ -35,6 +40,8 @@ do
             local camera = self.editor:getCamera()
             local sx, sy = camera:toScreen(camera:getPosition())
             camera:setPosition(camera:toWorld(sx - dx, sy - dy))
+
+            self:updateConfig()
         end
 
         function panning:mousereleased(_, _, button)
@@ -62,9 +69,28 @@ do
     function Look:init(editor)
         Agent.init(self, states)
         self.editor = editor
+        self.config = {}
 
         self.sizeall_cursor = love.mouse.getSystemCursor("sizeall")
         self.arrow_cursor = love.mouse.getSystemCursor("arrow")
+    end
+
+    function Look:updateConfig()
+        local camera = self.editor:getCamera()
+        self.config.x, self.config.y = camera:getPosition()
+        self.config.scale = camera:getScale()
+        self.config.angle = camera:getAngle()
+    end
+
+    function Look:saveConfig()
+        return self.config
+    end
+
+    function Look:loadConfig(config)
+        local camera = self.editor:getCamera()
+        camera:setPosition(config.x or 0, config.y or 0)
+        camera:setScale(config.scale or 1)
+        camera:setAngle(config.angle or 0)
     end
 end
 

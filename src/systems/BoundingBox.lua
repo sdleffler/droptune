@@ -14,6 +14,10 @@ local BoundingBoxSystem = ecs.System:subtype("droptune.systems.BoundingBox")
 do
     BoundingBoxSystem.active = false
 
+    function BoundingBoxSystem.registerBoundedComponent(component)
+        table.insert(bounded, component)
+    end
+
     function BoundingBoxSystem:filter(e)
         return true
     end
@@ -33,7 +37,7 @@ do
 
         function e:getBoundingBox(bb)
             if #fs == 0 and not bb then
-                return bound3.new(vec3(-8, -8), vec3(8, 8))
+                return bound3.new(vec3(-8, -8, 0), vec3(8, 8, 0))
             end
 
             for _, f in ipairs(fs) do

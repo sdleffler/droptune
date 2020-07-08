@@ -4,7 +4,7 @@ local Tool = dtrequire("keikaku.interactable").Tool
 local ResourcePicker = dtrequire("keikaku.ResourcePicker")
 local resource = dtrequire("resource")
 
-local Instantiate = Tool:subtype()
+local Instantiate = Tool:subtype("droptune.keikaku.tools.Instantiate")
 do
     local init = {}
     do

@@ -1,4 +1,4 @@
-local Tool = dtrequire("editor.tools.Tool")
+local Tool = dtrequire("keikaku.interactable").Tool
 local Agent, State = dtrequire("agent").common()
 
 local Look = Tool:subtype()

@@ -278,7 +278,11 @@ ecs.Visitor[PhysicsComponent] = {
         elseif k == "gravityScale" then
             body:setGravityScale(v)
         elseif k == "massData" then
-            local x, y = unpack(v.point)
+            local x, y, point = 0, 0, v.point
+            if point then
+                x, y = unpack(v.point)
+            end
+
             body:setMassData(x, y, v.mass, v.inertia)
         elseif k == "fixtures" then
             for _, fixture in ipairs(v) do

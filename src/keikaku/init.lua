@@ -14,8 +14,6 @@ keikaku.Tool = dtrequire("keikaku.interactable").Tool
 
 keikaku.registerInteraction = dtrequire("keikaku.interactable").registerInteraction
 
-keikaku.tools = dtrequire("keikaku.tools")
-
 keikaku.ResourcePicker = dtrequire("keikaku.ResourcePicker")
 
 local Editor = scene.Scene:subtype()
