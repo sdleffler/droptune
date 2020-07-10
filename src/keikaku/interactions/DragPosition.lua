@@ -25,16 +25,23 @@ function DragPosition:init(editor)
     self.shapes = {}
 end
 
-DragPosition.filter = PositionComponent.filter
+function DragPosition:filter(entity)
+    local posc = entity[PositionComponent]
+    return posc
+end
 
 function DragPosition:onAdd(e)
     local shapes = {}
     local mat = mat4()
     local posc = e[PositionComponent]
 
+    if posc.parent or posc.hide then
+        return -- Currently, not sure how to deal w/ position components w/ parents.
+    end
+
     do
         local function getCenter()
-            local bb = e:getBoundingBox()
+            local bb = e:getLocalBoundingBox()
             local p = e:getTransform(mat:identity()) * bb:center()
             return p.x, p.y
         end
@@ -43,7 +50,7 @@ function DragPosition:onAdd(e)
             mat:identity()
                 mat:rotate(mat, -posc.angle, plusz)
                 mat:scale(mat, vec3(1/posc.scale.x, 1/posc.scale.y, 1/posc.scale.z))
-                mat:translate(mat, -e:getBoundingBox():center())
+                mat:translate(mat, -e:getLocalBoundingBox():center())
                 mat:scale(mat, posc.scale)
                 mat:rotate(mat, posc.angle, plusz)
 
@@ -52,24 +59,23 @@ function DragPosition:onAdd(e)
                 physc:getInverseTransform(mat)
             end
 
-            posc.position = mat * vec3(x, y, posc.position.z)
+            posc.position.x, posc.position.y = (mat * vec3(x, y, posc.position.z)):unpack()
         end
 
-        local x, y = getCenter()
-        local shape = self.editor.hc:circle(x, y, 4)
+        local shape = self.editor.hc:circle(0, 0, 4)
         shape.agent = DragAgent.newFromAccessors(self.editor, e, setCenter, getCenter)
         table.insert(shapes, shape)
     end
 
     local function makeRotate(accessor)
         local function getRotate()
-            local bb = e:getBoundingBox()
+            local bb = e:getLocalBoundingBox()
             local p = e:getTransform(mat:identity()) * accessor(bb)
             return p.x, p.y
         end
 
         local function setRotate(x, y)
-            local bb = e:getBoundingBox()
+            local bb = e:getLocalBoundingBox()
 
             -- First, calculate and set the new rotation.
             local corner = accessor(bb)
@@ -105,11 +111,10 @@ function DragPosition:onAdd(e)
                 physc:getInverseTransform(mat)
             end
 
-            posc.x, posc.y = (mat * worldcenter):unpack()
+            posc.position.x, posc.position.y = (mat * worldcenter):unpack()
         end
 
-        local x, y = getRotate()
-        local shape = self.editor.hc:circle(x, y, 4)
+        local shape = self.editor.hc:circle(0, 0, 4)
         shape.agent = DragAgent.newFromAccessors(self.editor, e, setRotate, getRotate)
         table.insert(shapes, shape)
     end
@@ -121,13 +126,13 @@ function DragPosition:onAdd(e)
 
     local function makeScale(accessor)
         local function getScale()
-            local bb = e:getBoundingBox()
+            local bb = e:getLocalBoundingBox()
             local p = e:getTransform(mat:identity()) * accessor(bb)
             return p.x, p.y
         end
 
         local function setScale(x, y)
-            local bb = e:getBoundingBox()
+            local bb = e:getLocalBoundingBox()
 
             -- First, calculate and set the new scale.
             local middle = accessor(bb)
@@ -162,11 +167,10 @@ function DragPosition:onAdd(e)
                 physc:getInverseTransform(mat)
             end
 
-            posc.x, posc.y = (mat * worldcenter):unpack()
+            posc.position.x, posc.position.y = (mat * worldcenter):unpack()
         end
 
-        local x, y = getScale()
-        local shape = self.editor.hc:circle(x, y, 4)
+        local shape = self.editor.hc:circle(0, 0, 4)
         shape.agent = DragAgent.newFromAccessors(self.editor, e, setScale, getScale)
         table.insert(shapes, shape)
     end
@@ -181,44 +185,55 @@ end
 
 function DragPosition:onRemove(e)
     local table = self.shapes[e]
-    self.shapes[e] = nil
+    if table then
+        self.shapes[e] = nil
 
-    local hc = self.editor.hc
-    for _, s in ipairs(table) do
-        hc:remove(s)
+        local hc = self.editor.hc
+        for _, s in ipairs(table) do
+            hc:remove(s)
+        end
     end
 end
 
 function DragPosition:update(dt)
     local camera = self.editor:getCamera()
     for _, e in ipairs(self.entities) do
-        for _, s in ipairs(self.shapes[e]) do
-            s:moveTo(camera:toScreen(s.agent.get()))
+        local shapes = self.shapes[e]
+
+        if shapes then
+            for _, s in ipairs(self.shapes[e]) do
+                s:moveTo(camera:toScreen(s.agent.get()))
+            end
         end
     end
 end
 
 function DragPosition:draw(pipeline)
-    love.graphics.setColor(1, 0, 0, 0.8)
     love.graphics.setLineStyle("rough")
+    love.graphics.setLineWidth(2 / pipeline.camera:getScale())
 
     local mat = mat4()
 
     pipeline:setShader()
     pipeline:setViewTransform(pipeline:getCameraMatrix())
     for _, e in ipairs(self.entities) do
-        local bounds = e:getBoundingBox()
+        local bounds = e:getWorldBoundingBox()
         local min = bounds.min
         local size = bounds:size()
 
-        love.graphics.push()
-        pipeline:setModelTransform(e:getTransform(mat:identity()))
+        pipeline:setModelTransform(mat:identity())
+        love.graphics.setColor(1, 1, 0, 0.4)
+        love.graphics.rectangle("line", min.x, min.y, size.x, size.y)
 
-        love.graphics.setLineWidth(4 / (pipeline.camera:getScale() * e[PositionComponent].scale:len()))
+        local bounds = e:getLocalBoundingBox()
+        local min = bounds.min
+        local size = bounds:size()
+
+        pipeline:setModelTransform(e:getTransform(mat:identity()))
+        love.graphics.setColor(1, 0, 0, 0.8)
         love.graphics.rectangle("line", min.x, min.y, size.x, size.y)
         love.graphics.line(0, controlScale, 0, 0, controlScale, 0)
         love.graphics.line(-csFrac8, csFrac3q, 0, controlScale, csFrac8, csFrac3q)
-        love.graphics.pop()
     end
     pipeline:setModelTransform()
     pipeline:setViewTransform()

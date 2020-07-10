@@ -14,7 +14,7 @@ do
         return e[SpriteComponent] or e[AnimatedSpriteComponent]
     end
 
-    function SpriteRenderer:draw(pipeline, ...)
+    function SpriteRenderer:draw(pipeline)
         local transform = mat4.identity()
         local model = mat4.identity()
     
@@ -25,8 +25,8 @@ do
             local animated = e[AnimatedSpriteComponent]
             if animated then
                 model:identity()
-                model:translate(model, vec3(-animated.ox, -animated.oy, 0))
-                model:scale(model, vec3(animated.sx, animated.sy, 1))
+                    :translate(model, vec3(-animated.ox, -animated.oy, 0))
+                    :scale(model, vec3(animated.sx, animated.sy, 1))
 
                 pipeline:setModelTransform(transform * model)
                 animated.animation:draw()
@@ -34,10 +34,16 @@ do
 
             local sprite = e[SpriteComponent]
             if sprite then
-                pipeline:setModelTransform(transform)
+                model:identity()
+                    :translate(model, vec3(-sprite.ox, -sprite.oy, 0))
+                    :scale(model, vec3(sprite.sx, sprite.sy, 1))
+
+                pipeline:setModelTransform(transform * model)
                 love.graphics.draw(sprite.image)
             end
         end
+        pipeline:setModelTransform()
+        pipeline:setViewTransform()
     end
 end
 

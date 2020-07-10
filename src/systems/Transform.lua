@@ -3,7 +3,7 @@ local ecs = dtrequire("ecs")
 local cpml = dtrequire("lib.cpml")
 local lume = dtrequire("lib.lume")
 
-local mat4 = cpml.mat4
+local mat4, vec3 = cpml.mat4, cpml.vec3
 
 local transformers = {
     components.Physics,
@@ -56,13 +56,14 @@ do
 
             return mat
         end
+
+        local m = mat4()
+        function e:getOrigin()
+            return e:getTransform(m:identity()) * vec3.zero
+        end
     end
 
     TransformSystem.onChange = TransformSystem.onAdd
-
-    function TransformSystem:onRemove(e)
-        e.getTransform = nil
-    end
 end
 
 return TransformSystem

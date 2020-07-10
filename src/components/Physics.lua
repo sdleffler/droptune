@@ -278,12 +278,7 @@ ecs.Visitor[PhysicsComponent] = {
         elseif k == "gravityScale" then
             body:setGravityScale(v)
         elseif k == "massData" then
-            local x, y, point = 0, 0, v.point
-            if point then
-                x, y = unpack(v.point)
-            end
-
-            body:setMassData(x, y, v.mass, v.inertia)
+            self.massData = v
         elseif k == "fixtures" then
             for _, fixture in ipairs(v) do
                 makeFixture(body, fixture)
@@ -303,7 +298,20 @@ ecs.Visitor[PhysicsComponent] = {
         end
     end,
 
-    finish = function(self) return self end,
+    finish = function(self)
+        local v = self.massData
+        if v then
+            local x, y, point = 0, 0, v.point
+            if point then
+                x, y = unpack(v.point)
+            end
+
+            self.body:setMassData(x, y, v.mass, v.inertia)
+            self.massData = nil
+        end
+
+        return self
+    end,
 }
 
 -- hooks.registerComponent(PhysicsComponent, {

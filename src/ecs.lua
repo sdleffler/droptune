@@ -224,10 +224,6 @@ do
                 for k, v in next, t, nil do
                     wentry(k, v, false, next(t, k) == nil)
                 end
-
-                for i, v in ipairs(t) do
-                    wentry(i, v, false)
-                end
             end
             indents = indents - 1
 

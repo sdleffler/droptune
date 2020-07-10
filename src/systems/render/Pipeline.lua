@@ -5,6 +5,8 @@ local resource = dtrequire("resource")
 local lume = dtrequire("lib.lume")
 local cpml = dtrequire("lib.cpml")
 local mat4 = cpml.mat4
+local vec3 = cpml.vec3
+local bound3 = cpml.bound3
 
 local NEAR, FAR = -128, 128
 
@@ -18,7 +20,9 @@ do
 
         self.transform_stack = {}
 
-        self:resetTransforms()
+        self.model_transform = mat4()
+        self.view_transform = mat4()
+        self.projection_transform = mat4()
     end
 
     function Pipeline:pushTarget(...)
@@ -66,6 +70,11 @@ do
         else
             return love.graphics.getDimensions()
         end
+    end
+
+    function Pipeline:getVisibleBoundingBox()
+        local l, t, w, h = self:getCameraVisible()
+        return bound3.new(vec3(l, t, 0), vec3(l+w, t+w, 0)):check()
     end
 
     function Pipeline:setCameraWorld(l, t, w, h)
@@ -153,6 +162,17 @@ do
         if shader:hasUniform("ModelTransform") then
             shader:send("ModelTransform", "column", mat)
         end
+
+        self:updateMVP()
+    end
+
+    function Pipeline:updateMVP()
+        local shader = self.shader
+
+        if shader:hasUniform("MVPTransform") then
+            self.mvp_transform = self.projection_transform * self.view_transform * self.model_transform
+            shader:send("MVPTransform", "column", self.mvp_transform)
+        end
     end
 
     function Pipeline:getModelTransform()
@@ -168,6 +188,8 @@ do
         if shader:hasUniform("ViewTransform") then
             shader:send("ViewTransform", "column", mat)
         end
+
+        self:updateMVP()
     end
 
     function Pipeline:setProjectionTransform(mat)
@@ -203,7 +225,9 @@ do
 
         if shader:hasUniform("ProjectionTransform") then
             shader:send("ProjectionTransform", "column", mat)
-        end
+        end 
+
+        self:updateMVP()
     end
 
     function Pipeline:pushTransforms(model, view, projection)
@@ -236,12 +260,14 @@ do
         if model_transform then
             self:setModelTransform(model_transform)
         end
+
+        self:updateMVP()
     end
 
     function Pipeline:resetTransforms()
-        self:setModelTransform()
-        self:setViewTransform()
-        self:setProjectionTransform()
+        self.model_transform:identity()
+        self.view_transform:identity()
+        self:setProjectionTransform() -- also set MVP
     end
 
     function Pipeline:sendTransforms()
@@ -258,6 +284,8 @@ do
             if shader:hasUniform("ProjectionTransform") then
                 shader:send("ProjectionTransform", "column", self.projection_transform)
             end
+
+            self:updateMVP()
         end
     end
 

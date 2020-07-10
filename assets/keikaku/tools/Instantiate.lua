@@ -17,7 +17,11 @@ do
                 )
 
                 local co = self.editor.world:coinstantiate(self.resource, env)
-                coroutine.resume(co, wx, wy, button)
+                local ok, err = coroutine.resume(co, wx, wy, button)
+
+                if not ok then
+                    print("error instantiating " .. self.script .. ": " .. err)
+                end
 
                 if coroutine.status(co) == "suspended" then
                     self.co = co
@@ -123,12 +127,28 @@ do
         )
     end
 
+    function Instantiate:saveConfig()
+        return {
+            script = self.script,
+            recents = self.recents,
+        }
+    end
+
+    function Instantiate:loadConfig(config)
+        self.script = config.script or self.script
+        self.recents = config.recents or self.recents
+    end
+
     function Instantiate:overrideGUI()
         return false
     end
 
     function Instantiate:overrideContextMenu()
         return select(2, self:message("overrideContextMenu"))
+    end
+
+    function Instantiate:getDisplayName()
+        return "Instantiate"
     end
 end
 

@@ -16,6 +16,10 @@ function menu.worldMenu(editor, dt)
         end
 
         Slab.Separator()
+        
+        if Slab.MenuItem("New") then
+            editor.world:clearEntities()
+        end
 
         if editor.current_file and Slab.MenuItem("Save") then
             editor.agent:message("saveWorld", editor)

@@ -6,18 +6,31 @@ local vec3, mat4 = cpml.vec3, cpml.mat4
 
 local Target = prototype.new()
 do
-    function Target:init(width, height)
-        local renderTarget1 = love.graphics.newCanvas(width, height, {
-            type = "2d",
-            format = "normal",
-            readable = true,
-        })
+    function Target:init(width, height, t1, ds)
+        local renderTarget1, depthstencil
+        if type(t1) == "userdata" then
+            renderTarget1 = t1
+        else
+            local t1 = t1 or {
+                type = "2d",
+                format = "normal",
+                readable = true,
+            }
 
-        local depthstencil = love.graphics.newCanvas(width, height, {
-            type = "2d",
-            format = "depth24stencil8",
-            readable = true,
-        })
+            renderTarget1 = love.graphics.newCanvas(width, height, t1)
+        end
+
+        if type(ds) == "userdata" then
+            depthstencil = ds
+        else
+            local ds = ds or {
+                type = "2d",
+                format = "depth24stencil8",
+                readable = true,
+            }
+
+            depthstencil = love.graphics.newCanvas(width, height, ds)
+        end
 
         renderTarget1:setFilter("nearest", "nearest")
 
@@ -37,7 +50,7 @@ do
     end
 
     function Target:draw(pipeline)
-        local w, h = pipeline:getCurrentTargetDimensions()
+        local _, _, w, h = pipeline:getCameraWindow()
         local scale = math.max(w / self.w, h / self.h)
 
         local m = mat4.identity()

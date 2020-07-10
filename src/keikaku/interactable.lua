@@ -44,6 +44,10 @@ if not _keikaku_interactable_G then
             return self:getShortPrototypeName()
         end
 
+        function Tool:getDisplayName()
+            return self:getName()
+        end
+
         function Tool:saveConfig()
             return {}
         end

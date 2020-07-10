@@ -92,6 +92,10 @@ do
         camera:setScale(config.scale or 1)
         camera:setAngle(config.angle or 0)
     end
+
+    function Look:getDisplayName()
+        return "Look"
+    end
 end
 
 return Look

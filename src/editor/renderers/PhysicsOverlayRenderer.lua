@@ -28,7 +28,7 @@ do
                         love.graphics.setColor(1, 1, 0)
                         love.graphics.setLineWidth(scaledLineWidth)
                         for i = 1, fixture:getShape():getChildCount() do
-                            local l, t, r, b = fixture:getBoundingBox(i)
+                            local l, t, r, b = fixture:getLocalBoundingBox(i)
                             love.graphics.rectangle("line", l, t, r-l, b-t)
                         end
                     end
